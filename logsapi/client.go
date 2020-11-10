@@ -8,6 +8,8 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // Protocol represents the protocol that this extension should receive logs by
@@ -37,9 +39,9 @@ type Destination struct {
 
 // BufferingOptions contains buffering configuration options for the lambda platform
 type BufferingOptions struct {
-	TimeoutMS uint
-	MaxBytes  uint64
-	MaxItems  uint64
+	TimeoutMS uint   `json:"timeoutMs"`
+	MaxBytes  uint64 `json:"maxBytes"`
+	MaxItems  uint64 `json:"maxItems"`
 }
 
 // Client is used to communicate with the Logs API
@@ -91,10 +93,14 @@ func (c *Client) Subscribe(ctx context.Context, extensionID string) (*SubscribeR
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("Sending: ", string(reqBody))
+	fmt.Println(c.url("/logs"))
+	log.Infof("Sending PUT body: %s", string(reqBody))
 	httpReq, err := http.NewRequestWithContext(ctx, "PUT", c.url("/logs"), bytes.NewBuffer(reqBody))
 	if err != nil {
 		return nil, err
 	}
+	log.Infof("Setting %s => %s", extensionIdentifierHeader, extensionID)
 	httpReq.Header.Set(extensionIdentifierHeader, extensionID)
 	httpRes, err := c.httpClient.Do(httpReq)
 	if err != nil {
