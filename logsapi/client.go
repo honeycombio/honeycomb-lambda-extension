@@ -10,8 +10,6 @@ import (
 	"net/url"
 	"path"
 	"strings"
-
-	log "github.com/sirupsen/logrus"
 )
 
 // Protocol represents the protocol that this extension should receive logs by
@@ -95,14 +93,10 @@ func (c *Client) Subscribe(ctx context.Context, extensionID string) (*SubscribeR
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("Sending: ", string(reqBody))
-	fmt.Println(c.url("/logs"))
-	log.Infof("Sending PUT body: %s", string(reqBody))
 	httpReq, err := http.NewRequestWithContext(ctx, "PUT", c.url("/logs"), bytes.NewBuffer(reqBody))
 	if err != nil {
 		return nil, err
 	}
-	log.Infof("Setting %s => %s", extensionIdentifierHeader, extensionID)
 	httpReq.Header.Set(extensionIdentifierHeader, extensionID)
 	httpRes, err := c.httpClient.Do(httpReq)
 	if err != nil {
