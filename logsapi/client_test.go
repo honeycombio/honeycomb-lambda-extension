@@ -37,7 +37,7 @@ func TestSubscribeLogs(t *testing.T) {
 	client := NewClient(server.URL, destinationPort, bufferingConfig)
 	ctx := context.TODO()
 
-	resp, err := client.Subscribe(ctx, testExtensionID)
+	resp, err := client.Subscribe(ctx, testExtensionID, []LogType{PlatformLog, FunctionLog})
 	if err != nil {
 		t.Error(err)
 	}

@@ -37,7 +37,6 @@ func getLogMessages() []LogMessage {
 }
 
 func TestLogMessage(t *testing.T) {
-
 	rr := httptest.NewRecorder()
 	b, err := json.Marshal(getLogMessages())
 	if err != nil {
@@ -61,7 +60,7 @@ func TestLogMessage(t *testing.T) {
 	}
 
 	assert.Equal(t, 3, len(testTx.Events()))
-	assert.Equal(t, "platform.start", testTx.Events()[0].Data["type"])
+	assert.Equal(t, "platform.start", testTx.Events()[0].Data["lambda_extension.type"])
 	assert.Equal(t, "$LATEST", testTx.Events()[0].Data["version"])
 	assert.Equal(t, "bar", testTx.Events()[2].Data["foo"])
 }
