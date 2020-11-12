@@ -27,11 +27,11 @@ var (
 
 	// logs API configuration
 	logsServerPort = 3000
-	logsClient     = logsapi.NewClient(runtimeAPI, logsServerPort, logsapi.BufferingOptions{
-		TimeoutMS: 1000,
-		MaxBytes:  262144,
-		MaxItems:  1000,
-	})
+
+	// default buffering options for logs api
+	defaultTimeoutMS = 1000
+	defaultMaxBytes  = 262144
+	defaultMaxItems  = 1000
 
 	// honeycomb configuration
 	apiKey     = os.Getenv("LIBHONEY_API_KEY")
@@ -76,6 +76,13 @@ func main() {
 
 	// initialize Logs API HTTP server
 	go logsapi.StartHTTPServer(logsServerPort, client)
+
+	// create logs api client
+	logsClient := logsapi.NewClient(runtimeAPI, logsServerPort, logsapi.BufferingOptions{
+		TimeoutMS: uint(envOrElseInt("LOGS_API_TIMEOUT_MS", defaultTimeoutMS)),
+		MaxBytes:  uint64(envOrElseInt("LOGS_API_MAX_BYTES", defaultMaxBytes)),
+		MaxItems:  uint64(envOrElseInt("LOGS_API_MAX_ITEMS", defaultMaxItems)),
+	})
 
 	if !localMode {
 		subRes, err := logsClient.Subscribe(ctx, extensionClient.ExtensionID)
@@ -138,4 +145,16 @@ func libhoneyConfig() libhoney.ClientConfig {
 		APIHost:    apiHost,
 		Logger:     &libhoney.DefaultLogger{},
 	}
+}
+
+// helper function for environment variables with default fallbacks
+func envOrElseInt(key string, fallback int) int {
+	if value, ok := os.LookupEnv(key); ok {
+		v, err := strconv.Atoi(value)
+		if err != nil {
+			return fallback
+		}
+		return v
+	}
+	return fallback
 }
