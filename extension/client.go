@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
+	"path"
 	"strings"
 )
 
@@ -58,7 +60,7 @@ type NextEventResponse struct {
 
 // NewClient returns a new Lambda Extensions API client
 func NewClient(baseURL string, extensionName string) *Client {
-	if !strings.HasPrefix(baseURL, "http://") {
+	if !strings.HasPrefix(baseURL, "http") {
 		baseURL = fmt.Sprintf("http://%s", baseURL)
 	}
 	baseURL = fmt.Sprintf("%s/2020-01-01/extension", baseURL)
@@ -134,6 +136,11 @@ func (c *Client) NextEvent(ctx context.Context) (*NextEventResponse, error) {
 }
 
 // url is a helper function to build urls out of relative paths
-func (c *Client) url(path string) string {
-	return fmt.Sprintf("%s%s", c.baseURL, path)
+func (c *Client) url(requestPath string) string {
+	newURL, err := url.Parse(c.baseURL)
+	if err != nil {
+		return fmt.Sprintf("%s%s", c.baseURL, requestPath)
+	}
+	newURL.Path = path.Join(newURL.Path, requestPath)
+	return newURL.String()
 }

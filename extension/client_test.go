@@ -151,3 +151,16 @@ func TestNextEvent(t *testing.T) {
 	assert.Equal(t, Invoke, res.EventType)
 	assert.Equal(t, "X-Amzn-Trace-Id", res.Tracing.Type)
 }
+
+func TestURL(t *testing.T) {
+	client := NewClient("honeycomb.io/foo", testName)
+	assert.Equal(t, "http://honeycomb.io/foo/2020-01-01/extension", client.baseURL)
+
+	url := client.url("/foo/bar/baz")
+	assert.Equal(t, "http://honeycomb.io/foo/2020-01-01/extension/foo/bar/baz", url)
+
+	client = NewClient("https://mywebsite.com:9000", testName)
+
+	assert.Equal(t, "https://mywebsite.com:9000/2020-01-01/extension", client.baseURL)
+	assert.Equal(t, "https://mywebsite.com:9000/2020-01-01/extension/foo/bar", client.url("foo/bar"))
+}

@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
+	"path"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
@@ -67,7 +69,7 @@ type SubscribeResponse struct {
 
 // NewClient returns a new Lambda Logs API client
 func NewClient(baseURL string, port int, bufferingOpts BufferingOptions) *Client {
-	if !strings.HasPrefix(baseURL, "http://") {
+	if !strings.HasPrefix(baseURL, "http") {
 		baseURL = fmt.Sprintf("http://%s", baseURL)
 	}
 	baseURL = fmt.Sprintf("%s/2020-08-15", baseURL)
@@ -121,6 +123,11 @@ func (c *Client) Subscribe(ctx context.Context, extensionID string) (*SubscribeR
 }
 
 // url is a helper function to build urls out of relative paths
-func (c *Client) url(path string) string {
-	return fmt.Sprintf("%s%s", c.baseURL, path)
+func (c *Client) url(requestPath string) string {
+	newURL, err := url.Parse(c.baseURL)
+	if err != nil {
+		return fmt.Sprintf("%s%s", c.baseURL, requestPath)
+	}
+	newURL.Path = path.Join(newURL.Path, requestPath)
+	return newURL.String()
 }
