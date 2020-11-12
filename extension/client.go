@@ -117,10 +117,10 @@ func (c *Client) NextEvent(ctx context.Context) (*NextEventResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	if httpRes.StatusCode != 200 {
+	defer httpRes.Body.Close()
+	if httpRes.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("request failed with status %s", httpRes.Status)
 	}
-	defer httpRes.Body.Close()
 	body, err := ioutil.ReadAll(httpRes.Body)
 	if err != nil {
 		return nil, err
