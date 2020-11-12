@@ -27,12 +27,26 @@ func handler(libhoneyClient *libhoney.Client) http.HandlerFunc {
 			return
 		}
 		defer r.Body.Close()
+
+		// The Logs API will send batches of events as an array of JSON objects.
+		// Each object will have time, type and record as the top-level keys. If
+		// the log message is a function message, the record element will contain
+		// whatever was emitted by the function to stdout. This could be a structured
+		// log message (JSON) or a plain string.
 		var logs []LogMessage
 		err = json.Unmarshal(body, &logs)
 		if err != nil {
 			log.Warn("Could not unmarshal payload", err)
 			return
 		}
+
+		// Iterate through the batch of log messages received. In the case of function
+		// log messages, the Record field of the struct will be a string. That string
+		// may contain string-encoded JSON (e.g. "{\"trace.trace_id\": \"1234\", ...}")
+		// in which case, we will try to parse the JSON into a map[string]interface{}
+		// and then add it to the Honeycomb event. If, for some reason, parsing the JSON
+		// is impossible, then we just add the string as a field "record" in Honeycomb.
+		// This is what will happen if the function emits plain, non-structured strings.
 		for _, msg := range logs {
 			event := libhoneyClient.NewEvent()
 			event.AddField("type", msg.Type)
@@ -41,14 +55,15 @@ func handler(libhoneyClient *libhoney.Client) http.HandlerFunc {
 			switch v := msg.Record.(type) {
 			case string:
 				// attempt to parse as json
-				var record interface{}
-				err = json.Unmarshal([]byte(v), &record)
-				if err != nil {
+				var record map[string]interface{}
+				if err = json.Unmarshal([]byte(v), &record); err != nil {
 					event.AddField("record", msg.Record)
 				} else {
 					event.Add(record)
 				}
 			default:
+				// In the case of platform.start and platform.report messages, msg.Record
+				// will be a map[string]interface{}.
 				event.Add(msg.Record)
 			}
 			event.Send()
