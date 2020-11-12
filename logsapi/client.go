@@ -21,6 +21,9 @@ type Protocol string
 type LogType string
 
 const (
+	// Local hostname according to process running in extension env
+	localHostname= "sandbox"
+
 	// HTTPProtocol is the protocol that we receive logs over
 	HTTPProtocol Protocol = "HTTP"
 
@@ -86,7 +89,7 @@ func (c *Client) Subscribe(ctx context.Context, extensionID string, types []LogT
 	subscribe := SubscribeRequest{
 		Dest: Destination{
 			Protocol: HTTPProtocol,
-			URI:      fmt.Sprintf("http://sandbox:%d", c.destinationPort),
+			URI:      fmt.Sprintf("http://%s:%d", localHostname, c.destinationPort),
 		},
 		Types:     types,
 		Buffering: c.bufferingOptions,
