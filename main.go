@@ -36,7 +36,6 @@ var (
 	// honeycomb configuration
 	apiKey     = os.Getenv("LIBHONEY_API_KEY")
 	dataset    = os.Getenv("LIBHONEY_DATASET")
-	sampleRate = os.Getenv("LIBHONEY_SAMPLERATE")
 	apiHost    = os.Getenv("LIBHONEY_API_HOST")
 
 	// when run in local mode, we don't attempt to register the extension or subscribe
@@ -128,17 +127,9 @@ func libhoneyConfig() libhoney.ClientConfig {
 		log.Warnln("LIBHONEY_DATASET not set, disabling libhoney")
 	}
 
-	var s uint64
-	var err error
-	if s, err = strconv.ParseUint(sampleRate, 10, 16); err != nil {
-		log.Warnln("Could not parse LIBHONEY_SAMPLERATE. Defaulting to 1.")
-		s = 1
-	}
-
 	return libhoney.ClientConfig{
 		APIKey:     apiKey,
 		Dataset:    dataset,
-		SampleRate: uint(s),
 		APIHost:    apiHost,
 		Logger:     &libhoney.DefaultLogger{},
 	}
