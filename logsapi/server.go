@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"time"
 
 	libhoney "github.com/honeycombio/libhoney-go"
 	log "github.com/sirupsen/logrus"
@@ -50,7 +51,15 @@ func handler(libhoneyClient *libhoney.Client) http.HandlerFunc {
 		for _, msg := range logs {
 			event := libhoneyClient.NewEvent()
 			event.AddField("lambda_extension.type", msg.Type)
-			event.AddField("lambda_extension.time", msg.Time)
+
+			ts, err := time.Parse(time.RFC3339, msg.Time)
+			if err != nil {
+				// Couldn't parse timestamp from AWS, so let libhoney default to time.Now()
+				// and log this as lambda_extension.time
+				event.AddField("lambda_extension.time", msg.Time)
+			} else {
+				event.Timestamp = ts
+			}
 
 			switch v := msg.Record.(type) {
 			case string:
