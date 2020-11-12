@@ -49,8 +49,8 @@ func handler(libhoneyClient *libhoney.Client) http.HandlerFunc {
 		// This is what will happen if the function emits plain, non-structured strings.
 		for _, msg := range logs {
 			event := libhoneyClient.NewEvent()
-			event.AddField("type", msg.Type)
-			event.AddField("time", msg.Time)
+			event.AddField("lambda_extension.type", msg.Type)
+			event.AddField("lambda_extension.time", msg.Time)
 
 			switch v := msg.Record.(type) {
 			case string:
