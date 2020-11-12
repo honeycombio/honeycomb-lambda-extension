@@ -34,9 +34,9 @@ var (
 	defaultMaxItems  = 1000
 
 	// honeycomb configuration
-	apiKey     = os.Getenv("LIBHONEY_API_KEY")
-	dataset    = os.Getenv("LIBHONEY_DATASET")
-	apiHost    = os.Getenv("LIBHONEY_API_HOST")
+	apiKey  = os.Getenv("LIBHONEY_API_KEY")
+	dataset = os.Getenv("LIBHONEY_DATASET")
+	apiHost = os.Getenv("LIBHONEY_API_HOST")
 
 	// when run in local mode, we don't attempt to register the extension or subscribe
 	// to log events - useful for testing
@@ -128,10 +128,10 @@ func libhoneyConfig() libhoney.ClientConfig {
 	}
 
 	return libhoney.ClientConfig{
-		APIKey:     apiKey,
-		Dataset:    dataset,
-		APIHost:    apiHost,
-		Logger:     &libhoney.DefaultLogger{},
+		APIKey:  apiKey,
+		Dataset: dataset,
+		APIHost: apiHost,
+		Logger:  &libhoney.DefaultLogger{},
 	}
 }
 
