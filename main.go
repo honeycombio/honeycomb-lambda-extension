@@ -113,6 +113,8 @@ func main() {
 				cancel()
 			} else if res.EventType == extension.Invoke {
 				log.Debug("Received INVOKE event.")
+			} else {
+				log.Debug("Received unknown event: ", res)
 			}
 		}
 	}
