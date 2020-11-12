@@ -106,7 +106,7 @@ func main() {
 			res, err := extensionClient.NextEvent(ctx)
 			if err != nil {
 				log.Warn("Error from NextEvent: ", err)
-				return
+				continue
 			}
 			if res.EventType == extension.Shutdown {
 				log.Debug("Received SHUTDOWN event. Exiting.")
