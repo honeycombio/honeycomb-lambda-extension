@@ -19,7 +19,7 @@ type LogMessage struct {
 
 // handler receives batches of log messages from the Lambda Logs API. Each
 // LogMessage is sent to Honeycomb as a separate event.
-func handler(client *libhoney.Client) http.HandlerFunc {
+func handler(libhoneyClient *libhoney.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		body, err := ioutil.ReadAll(r.Body)
 		if err != nil {
@@ -34,7 +34,7 @@ func handler(client *libhoney.Client) http.HandlerFunc {
 			return
 		}
 		for _, msg := range logs {
-			event := client.NewEvent()
+			event := libhoneyClient.NewEvent()
 			event.AddField("type", msg.Type)
 			event.AddField("time", msg.Time)
 			switch msg.Record.(type) {
