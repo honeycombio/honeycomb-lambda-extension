@@ -91,7 +91,16 @@ func main() {
 		}
 	}
 
-	subRes, err := logsClient.Subscribe(ctx, extensionClient.ExtensionID)
+	var logTypes []logsapi.LogType
+	disablePlatformMsg := envOrElseBool("LOGS_API_DISABLE_PLATFORM_MSGS", false)
+
+	if disablePlatformMsg {
+		logTypes = []logsapi.LogType{logsapi.FunctionLog}
+	} else {
+		logTypes = []logsapi.LogType{logsapi.PlatformLog, logsapi.FunctionLog}
+	}
+
+	subRes, err := logsClient.Subscribe(ctx, extensionClient.ExtensionID, logTypes)
 	if err != nil {
 		log.Panic("Could not subscribe to events", err)
 	}
@@ -135,10 +144,21 @@ func libhoneyConfig() libhoney.ClientConfig {
 	}
 }
 
-// helper function for environment variables with default fallbacks
+// helper functions for environment variables with default fallbacks
 func envOrElseInt(key string, fallback int) int {
 	if value, ok := os.LookupEnv(key); ok {
 		v, err := strconv.Atoi(value)
+		if err != nil {
+			return fallback
+		}
+		return v
+	}
+	return fallback
+}
+
+func envOrElseBool(key string, fallback bool) bool {
+	if value, ok := os.LookupEnv(key); ok {
+		v, err := strconv.ParseBool(value)
 		if err != nil {
 			return fallback
 		}

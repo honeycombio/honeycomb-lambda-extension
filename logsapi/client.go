@@ -80,13 +80,13 @@ func NewClient(baseURL string, port int, bufferingOpts BufferingOptions) *Client
 }
 
 // Subscribe will subscribe to events sent from the Logs API
-func (c *Client) Subscribe(ctx context.Context, extensionID string) (*SubscribeResponse, error) {
+func (c *Client) Subscribe(ctx context.Context, extensionID string, types []LogType) (*SubscribeResponse, error) {
 	subscribe := SubscribeRequest{
 		Dest: Destination{
 			Protocol: HTTPProtocol,
 			URI:      fmt.Sprintf("http://sandbox:%d", c.destinationPort),
 		},
-		Types:     []LogType{PlatformLog, FunctionLog},
+		Types:     types,
 		Buffering: c.bufferingOptions,
 	}
 	reqBody, err := json.Marshal(subscribe)
