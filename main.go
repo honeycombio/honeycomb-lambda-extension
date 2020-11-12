@@ -17,6 +17,8 @@ import (
 )
 
 var (
+	// This environment variable is set in the extension environment. It's expected to be
+	// a hostname:port combination.
 	runtimeAPI = os.Getenv("AWS_LAMBDA_RUNTIME_API")
 
 	// extension API configuration
