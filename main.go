@@ -122,11 +122,9 @@ func main() {
 
 // configure libhoney
 func libhoneyConfig() libhoney.ClientConfig {
-	if apiKey == "" {
-		log.Warnln("LIBHONEY_API_KEY not set, disabling libhoney")
-	}
-	if dataset == "" {
-		log.Warnln("LIBHONEY_DATASET not set, disabling libhoney")
+	if apiKey == "" || dataset == "" {
+		log.Warnln("LIBHONEY_API_KEY or LIBHONEY_DATASET not set, disabling libhoney")
+		return libhoney.ClientConfig{}
 	}
 
 	return libhoney.ClientConfig{
