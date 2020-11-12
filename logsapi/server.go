@@ -37,11 +37,12 @@ func handler(libhoneyClient *libhoney.Client) http.HandlerFunc {
 			event := libhoneyClient.NewEvent()
 			event.AddField("type", msg.Type)
 			event.AddField("time", msg.Time)
-			switch msg.Record.(type) {
+
+			switch v := msg.Record.(type) {
 			case string:
 				// attempt to parse as json
 				var record interface{}
-				err = json.Unmarshal([]byte(msg.Record.(string)), &record)
+				err = json.Unmarshal([]byte(v), &record)
 				if err != nil {
 					event.AddField("record", msg.Record)
 				} else {
