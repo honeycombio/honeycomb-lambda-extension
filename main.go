@@ -84,14 +84,6 @@ func main() {
 		MaxItems:  uint64(envOrElseInt("LOGS_API_MAX_ITEMS", defaultMaxItems)),
 	})
 
-	if !localMode {
-		subRes, err := logsClient.Subscribe(ctx, extensionClient.ExtensionID)
-		if err != nil {
-			log.Panic("Could not subscribe to events", err)
-		}
-		log.Debug("Response from subscribe: ", subRes)
-	}
-
 	// if running in localMode, just wait on the context to be cancelled
 	if localMode {
 		select {
@@ -100,8 +92,13 @@ func main() {
 		}
 	}
 
-	// otherwise, poll the extension API for the next (invoke or shutdown)
-	// event.
+	subRes, err := logsClient.Subscribe(ctx, extensionClient.ExtensionID)
+	if err != nil {
+		log.Panic("Could not subscribe to events", err)
+	}
+	log.Debug("Response from subscribe: ", subRes)
+
+	// poll the extension API for the next (invoke or shutdown) event
 	for {
 		select {
 		case <-ctx.Done():
