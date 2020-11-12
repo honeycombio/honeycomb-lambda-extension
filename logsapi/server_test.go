@@ -15,7 +15,7 @@ import (
 
 func getLogMessages() []LogMessage {
 	return []LogMessage{
-		LogMessage{
+		{
 			Time: "2020-11-03T21:10:25.133Z",
 			Type: "platform.start",
 			Record: map[string]string{
@@ -23,12 +23,12 @@ func getLogMessages() []LogMessage {
 				"version":   "$LATEST",
 			},
 		},
-		LogMessage{
+		{
 			Time:   "2020-11-03T21:10:25.150Z",
 			Type:   "function",
 			Record: "A basic message to STDOUT",
 		},
-		LogMessage{
+		{
 			Time:   "2020-11-03T21:10:25.150Z",
 			Type:   "function",
 			Record: "{\"foo\": \"bar\"}",
