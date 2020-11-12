@@ -10,6 +10,8 @@ import (
 	"net/url"
 	"path"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // Protocol represents the protocol that this extension should receive logs by
@@ -111,6 +113,9 @@ func (c *Client) Subscribe(ctx context.Context, extensionID string, types []LogT
 		return nil, err
 	}
 	c.ExtensionID = httpRes.Header.Get(extensionIdentifierHeader)
+	if len(c.ExtensionID) == 0 {
+		log.Warn("No extension identifier returned in header")
+	}
 	return &SubscribeResponse{
 		Message: string(body),
 	}, nil

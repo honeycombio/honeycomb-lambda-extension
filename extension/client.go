@@ -10,6 +10,8 @@ import (
 	"net/url"
 	"path"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // EventType represents the type of events received from /event/next
@@ -103,6 +105,9 @@ func (c *Client) Register(ctx context.Context) (*RegisterResponse, error) {
 		return nil, err
 	}
 	c.ExtensionID = res.Header.Get("Lambda-Extension-Identifier")
+	if len(c.ExtensionID) == 0 {
+		log.Warn("No extension identifier returned in header")
+	}
 	return &resp, nil
 }
 
