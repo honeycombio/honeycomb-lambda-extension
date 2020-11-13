@@ -35,10 +35,6 @@ jobs:
 versions: &versions
   jobs:
     - test_lambda_extension:
-        goversion: "12"
-    - test_lambda_extension:
-        goversion: "13"
-    - test_lambda_extension:
         goversion: "14"
 
 workflows:
