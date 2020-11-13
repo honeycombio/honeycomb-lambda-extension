@@ -1,0 +1,41 @@
+# Golang CircleCI 2.0 configuration file
+#
+# Check https://circleci.com/docs/2.0/language-go/ for more details
+version: 2.1
+
+orbs:
+  buildevents: honeycombio/buildevents@0.2.6
+
+executors:
+  go:
+    parameters:
+      goversion:
+        type: string
+        default: "14"
+    working_directory: /home/circleci/go/src/github.com/honeycombio/honeycomb-lambda-extension
+    docker:
+      - image: cimg/go:1.<< parameters.goversion >>
+        environment:
+          GO111MODULE: "on"
+
+jobs:
+  test_lambda_extension:
+    parameters:
+      goversion:
+        type: string
+        default: "14"
+    executor:
+      name: go
+      goversion: "<< parameters.goversion >>"
+    steps:
+      - checkout
+      - run: go get -v -t -d ./...
+      - run: go test -race -v ./...
+
+workflows:
+  build:
+    jobs:
+      - test_lambda_extension:
+          goversion: "13"
+      - test_lambda_extension:
+          goversion: "14"
