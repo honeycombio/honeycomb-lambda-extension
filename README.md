@@ -1,5 +1,7 @@
 # honeycomb-lambda-extension
 
+[![CircleCI](https://circleci.com/gh/honeycombio/honeycomb-lambda-extension.svg?style=shield)](https://circleci.com/gh/honeycombio/honeycomb-lambda-extension)
+
 The honeycomb-lambda-extension allows you to send messages from your lambda
 function to Honeycomb by just writing JSON to stdout. The Honeycomb Lambda
 Extension will receive the messages your function sends to stdout and forward
