@@ -1,0 +1,47 @@
+# Golang CircleCI 2.0 configuration file
+#
+# Check https://circleci.com/docs/2.0/language-go/ for more details
+version: 2.1
+
+orbs:
+  go: circleci/go@1.5.0
+
+jobs:
+  test_lambda_extension:
+    parameters:
+      goversion:
+        type: "string"
+        default: "1.14"
+    executor:
+      name: go/default
+      tag: "<< parameters.goversion >>"
+    steps:
+      - checkout
+      - go/load-cache
+      - go/mod-download
+      - go/save-cache
+      - go/test:
+          covermode: atomic
+          failfast: true
+          race: true
+
+versions: &versions
+  jobs:
+    - test_lambda_extension:
+        goversion: "1.14"
+    - test_lambda_extension:
+        goversion: "1.15"
+
+workflows:
+  nightly:
+    triggers:
+      - schedule:
+          cron: "0 0 * * *"
+          filters:
+            branches:
+              only:
+                - main
+    <<: *versions
+
+  build:
+    <<: *versions
