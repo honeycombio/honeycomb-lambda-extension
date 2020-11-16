@@ -4,38 +4,33 @@
 version: 2.1
 
 orbs:
-  buildevents: honeycombio/buildevents@0.2.6
-
-executors:
-  go:
-    parameters:
-      goversion:
-        type: string
-        default: "14"
-    working_directory: /home/circleci/go/src/github.com/honeycombio/honeycomb-lambda-extension
-    docker:
-      - image: cimg/go:1.<< parameters.goversion >>
-        environment:
-          GO111MODULE: "on"
+  go: circleci/go@1.5.0
 
 jobs:
   test_lambda_extension:
     parameters:
       goversion:
-        type: string
-        default: "14"
+        type: "string"
+        default: "1.14"
     executor:
-      name: go
-      goversion: "<< parameters.goversion >>"
+      name: go/default
+      tag: "<< parameters.goversion >>"
     steps:
       - checkout
-      - run: go get -v -t -d ./...
-      - run: go test -race -v ./...
+      - go/load-cache
+      - go/mod-download
+      - go/save-cache
+      - go/test:
+          covermode: atomic
+          failfast: true
+          race: true
 
 versions: &versions
   jobs:
     - test_lambda_extension:
-        goversion: "14"
+        goversion: "1.14"
+    - test_lambda_extension:
+        goversion: "1.15"
 
 workflows:
   nightly:
@@ -50,4 +45,3 @@ workflows:
 
   build:
     <<: *versions
-
