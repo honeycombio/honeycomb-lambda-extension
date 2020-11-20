@@ -102,7 +102,7 @@ func main() {
 
 	subRes, err := logsClient.Subscribe(ctx, extensionClient.ExtensionID, logTypes)
 	if err != nil {
-		log.Panic("Could not subscribe to events", err)
+		log.Warn("Could not subscribe to events", err)
 	}
 	log.Debug("Response from subscribe: ", subRes)
 
