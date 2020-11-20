@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -68,6 +69,7 @@ func main() {
 	}
 
 	// initialize libhoney
+	libhoney.UserAgentAddition = fmt.Sprintf("honeycomb-lambda-extension/%s", version)
 	client, err := libhoney.NewClient(libhoneyConfig())
 	if err != nil {
 		log.Warn("Could not initialize libhoney", err)
