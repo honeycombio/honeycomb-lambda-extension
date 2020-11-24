@@ -1,20 +1,17 @@
-# Golang CircleCI 2.0 configuration file
-#
-# Check https://circleci.com/docs/2.0/language-go/ for more details
 version: 2.1
 
 orbs:
   go: circleci/go@1.5.0
 
 jobs:
-  test_lambda_extension:
+  test:
     parameters:
       goversion:
         type: "string"
         default: "1.14"
     executor:
       name: go/default
-      tag: "<< parameters.goversion >>"
+      tag: << parameters.goversion >>
     steps:
       - checkout
       - go/load-cache
@@ -24,13 +21,15 @@ jobs:
           covermode: atomic
           failfast: true
           race: true
-
-versions: &versions
-  jobs:
-    - test_lambda_extension:
-        goversion: "1.14"
-    - test_lambda_extension:
-        goversion: "1.15"
+  publish_github:
+    docker:
+      - image: cibuilds/github:0.13.0
+    steps:
+      - run:
+          name: "GHR Draft"
+          command: |
+            echo "about to build extension"
+            ghr -draft -n ${CIRCLE_TAG} -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} ${CIRCLE_TAG} ~/artifacts
 
 workflows:
   nightly:
@@ -41,7 +40,27 @@ workflows:
             branches:
               only:
                 - main
-    <<: *versions
+    jobs:
+      - test: &test
+          matrix:
+            parameters:
+              goversion:
+                - "1.14"
+                - "1.15"
 
   build:
-    <<: *versions
+    jobs:
+      - test:
+          <<: *test
+          filters:
+            tags:
+              only: /.*/
+      - publish_github:
+          context: Honeycomb Secrets
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
+          requires:
+            - test
