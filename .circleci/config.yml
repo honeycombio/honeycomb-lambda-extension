@@ -2,6 +2,7 @@ version: 2.1
 
 orbs:
   go: circleci/go@1.5.0
+  aws-cli: circleci/aws-cli@0.1.13
 
 jobs:
   test:
@@ -28,8 +29,22 @@ jobs:
       - run:
           name: "GHR Draft"
           command: |
-            echo "about to build extension"
+            echo "about to publish extension to github"
             ghr -draft -n ${CIRCLE_TAG} -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} ${CIRCLE_TAG} ~/artifacts
+  publish_s3:
+    docker:
+      - image: circleci/golang:1.15
+    steps:
+      - aws-cli/install
+      - aws-cli/configure:
+          aws-access-key-id: AWS_ACCESS_KEY_ID
+          aws-secret-access-key: AWS_SECRET_ACCESS_KEY
+          aws-region: AWS_REGION
+      - run:
+          name: "S3 Publish"
+          command: |
+            echo "about to publish extension to s3"
+            aws s3 cp ~/artifacts/honeycomb-lambda-extension s3://honeycomb-builds/honeycombio/honeycomb-lambda-extension/${CIRCLE_TAG}/honeycomb-lambda-extension
 
 workflows:
   nightly:
@@ -55,6 +70,15 @@ workflows:
           filters:
             tags:
               only: /.*/
+      - publish_github:
+          context: Honeycomb Secrets
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
+          requires:
+            - test
       - publish_github:
           context: Honeycomb Secrets
           filters:
