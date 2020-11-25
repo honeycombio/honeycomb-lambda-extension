@@ -102,16 +102,6 @@ workflows:
             tags:
               only: /.*/
       - build_extension
-      - publish_github:
-          context: Honeycomb Secrets
-          filters:
-            tags:
-              only: /^v.*/
-            branches:
-              ignore: /.*/
-          requires:
-            - test
-            - build_extension
       - publish_s3:
           context: Honeycomb Secrets
           filters:
