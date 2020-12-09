@@ -1,5 +1,9 @@
 # Honeycomb Lambda Extension Changelog
 
+## Version 4 (2020-12-09)
+
+- The Logs API returns 202 on subscribe. We were checking for 200.
+
 ## Version 3 (2020-11-20)
 
 - Remove unnecessary panic when unable to subscribe to logs API
