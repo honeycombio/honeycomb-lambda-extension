@@ -107,7 +107,7 @@ func (c *Client) Subscribe(ctx context.Context, extensionID string, types []LogT
 	if err != nil {
 		return nil, err
 	}
-	if httpRes.StatusCode != 200 {
+	if httpRes.StatusCode >= 400 {
 		return nil, fmt.Errorf("request failed with status %s", httpRes.Status)
 	}
 	defer httpRes.Body.Close()
