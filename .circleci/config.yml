@@ -103,7 +103,7 @@ workflows:
               only: /.*/
       - build_extension
       - publish_s3:
-          context: Honeycomb Secrets
+          context: Honeycomb Secrets for Public Repos
           filters:
             tags:
               only: /^v.*/
