@@ -142,7 +142,6 @@ func libhoneyConfig() libhoney.ClientConfig {
 		APIKey:  apiKey,
 		Dataset: dataset,
 		APIHost: apiHost,
-		Logger:  &libhoney.DefaultLogger{},
 	}
 }
 
