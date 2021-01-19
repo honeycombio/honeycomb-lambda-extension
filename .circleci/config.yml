@@ -35,14 +35,29 @@ jobs:
           name: "Build Binary"
           command: |
             echo "Building extension"
-            mkdir ~/artifacts/
-            GOOS=linux GOARCH=amd64 go build -o ~/artifacts/honeycomb-lambda-extension .
+            mkdir -p ~/artifacts/extensions
+            GOOS=linux GOARCH=amd64 go build -o ~/artifacts/extensions/honeycomb-lambda-extension .
       - persist_to_workspace:
           root: ~/
           paths:
             - artifacts
       - store_artifacts:
           path: ~/artifacts
+  publish_aws:
+    docker:
+      - image: circleci/golang:1.15
+    steps:
+      - attach_workspace:
+          at: ~/
+      - checkout
+      - aws-cli/install
+      - aws-cli/configure:
+          aws-access-key-id: AWS_ACCESS_KEY_ID
+          aws-secret-access-key: AWS_SECRET_ACCESS_KEY
+          aws-region: AWS_REGION
+      - run:
+          name: "Publish extension to AWS"
+          command: ./publish.sh
   publish_github:
     docker:
       - image: cibuilds/github:0.13.0
@@ -53,10 +68,10 @@ jobs:
           name: "Artifacts being published"
           command: |
             echo "about to publish to tag ${CIRCLE_TAG}"
-            ls -l ~/artifacts/*
+            ls -l ~/artifacts/extensions/*
       - run:
           name: "GHR Draft"
-          command: ghr -draft -n ${CIRCLE_TAG} -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} ${CIRCLE_TAG} ~/artifacts
+          command: ghr -draft -n ${CIRCLE_TAG} -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} ${CIRCLE_TAG} ~/artifacts/extensions/
   publish_s3:
     docker:
       - image: circleci/golang:1.15
@@ -72,10 +87,10 @@ jobs:
           name: "Artifacts being published"
           command: |
             echo "about to publish ${CIRCLE_TAG} to S3"
-            ls -l ~/artifacts/*
+            ls -l ~/artifacts/extensions/*
       - run:
           name: "S3 Release"
-          command: aws s3 cp ~/artifacts/honeycomb-lambda-extension s3://honeycomb-builds/honeycombio/honeycomb-lambda-extension/${CIRCLE_TAG}/honeycomb-lambda-extension
+          command: aws s3 cp ~/artifacts/extensions/honeycomb-lambda-extension s3://honeycomb-builds/honeycombio/honeycomb-lambda-extension/${CIRCLE_TAG}/honeycomb-lambda-extension
 
 workflows:
   nightly:
@@ -101,8 +116,24 @@ workflows:
           filters:
             tags:
               only: /.*/
-      - build_extension
+      - build_extension:
+          context: Honeycomb Secrets for Public Repos
+          filters:
+            tags:
+              only: /.*/
+            branches:
+              ignore: /pull\/.*/
       - publish_s3:
+          context: Honeycomb Secrets for Public Repos
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
+          requires:
+            - test
+            - build_extension
+      - publish_aws:
           context: Honeycomb Secrets for Public Repos
           filters:
             tags:
