@@ -35,14 +35,29 @@ jobs:
           name: "Build Binary"
           command: |
             echo "Building extension"
-            mkdir ~/artifacts/
-            GOOS=linux GOARCH=amd64 go build -o ~/artifacts/honeycomb-lambda-extension .
+            mkdir -p ~/artifacts/extensions
+            GOOS=linux GOARCH=amd64 go build -o ~/artifacts/extensions/honeycomb-lambda-extension .
       - persist_to_workspace:
           root: ~/
           paths:
             - artifacts
       - store_artifacts:
           path: ~/artifacts
+  publish_aws:
+    docker:
+      - image: circleci/golang:1.15
+    steps:
+      - attach_workspace:
+          at: ~/
+      - checkout
+      - aws-cli/install
+      - aws-cli/configure:
+          aws-access-key-id: AWS_ACCESS_KEY_ID
+          aws-secret-access-key: AWS_SECRET_ACCESS_KEY
+          aws-region: AWS_REGION
+      - run:
+          name: "Publish extension to AWS"
+          command: ./publish.sh
   publish_github:
     docker:
       - image: cibuilds/github:0.13.0
@@ -101,7 +116,8 @@ workflows:
           filters:
             tags:
               only: /.*/
-      - build_extension
+      - build_extension:
+          context: Honeycomb Secrets for Public Repos
       - publish_s3:
           context: Honeycomb Secrets for Public Repos
           filters:
@@ -109,6 +125,11 @@ workflows:
               only: /^v.*/
             branches:
               ignore: /.*/
+          requires:
+            - test
+            - build_extension
+      - publish_aws:
+          context: Honeycomb Secrets for Public Repos
           requires:
             - test
             - build_extension
