@@ -120,6 +120,11 @@ workflows:
           context: Honeycomb Secrets for Public Repos
       - publish_s3:
           context: Honeycomb Secrets for Public Repos
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
           requires:
             - test
             - build_extension
