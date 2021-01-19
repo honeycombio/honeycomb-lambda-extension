@@ -130,6 +130,11 @@ workflows:
             - build_extension
       - publish_aws:
           context: Honeycomb Secrets for Public Repos
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
           requires:
             - test
             - build_extension
