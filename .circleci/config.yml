@@ -118,6 +118,11 @@ workflows:
               only: /.*/
       - build_extension:
           context: Honeycomb Secrets for Public Repos
+          filters:
+            tags:
+              only: /.*/
+            branches:
+              ignore: /pull\/.*/
       - publish_s3:
           context: Honeycomb Secrets for Public Repos
           filters:
