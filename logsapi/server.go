@@ -80,18 +80,14 @@ func handler(libhoneyClient *libhoney.Client) http.HandlerFunc {
 	}
 }
 
-// The rules for parsing a timestamp from a log message are pretty complicated. In order of
-// precedence:
+// parseTimestamp is a helper function that will return a timestamp for a log message. There
+// are some precedence rules:
 //
-// - If the message body contains a valid timestamp, we should use it. This means the application
-//   wrote valid JSON to standard output that contained a timestamp field with a valid timestamp.
-//
-// - If no timestamp is found in the message body, but a duration is present, take the timestamp
-//   of the message (note that this is the timestamp provided by the lambda logs API, in other
-//   words it is the time when we _received_ the log message) and subtract the duration.
-//
-// - If no timestamp or duration is found in the message body, just use the time on the log event.
-func parseTimestamp(msg LogMessage, record map[string]interface{}) time.Time {
+// 1. Look for a "timestamp" field in the message body.
+// 2. If not present, look for a "duration_ms" field and subtract it from the log event
+//    timestamp.
+// 3. If neither are present, just use the log timestamp.
+func parseTimestamp(msg LogMessage, body map[string]interface{}) time.Time {
 
 	// parse the logs API event time in case we need it. If it's invalid, just take the time now.
 	messageTime, err := time.Parse(time.RFC3339, msg.Time)
@@ -99,7 +95,7 @@ func parseTimestamp(msg LogMessage, record map[string]interface{}) time.Time {
 		messageTime = time.Now()
 	}
 
-	ts, ok := record["timestamp"]
+	ts, ok := body["timestamp"]
 	if ok {
 		strTs, okStr := ts.(string)
 		if okStr {
@@ -110,15 +106,19 @@ func parseTimestamp(msg LogMessage, record map[string]interface{}) time.Time {
 		}
 	}
 
-	dur, ok := record["duration_ms"] // todo - make configurable
+	dur, ok := body["duration_ms"]
+
 	if ok {
+		// duration_ms may be a float (e.g. 43.23), integer (e.g. 54) or a string (e.g. "43")
 		switch duration := dur.(type) {
 			case float64:
-				return messageTime.Add(-1 * (time.Duration(duration) * time.Millisecond))
+				if d, err := time.ParseDuration(fmt.Sprintf("%.4fms", duration)); err == nil {
+					return messageTime.Add(-1 * d)
+				}
 			case int64:
 				return messageTime.Add(-1 * (time.Duration(duration) * time.Millisecond))
 			case string:
-				if d, err := strconv.Atoi(duration); err == nil {
+				if d, err := strconv.ParseFloat(duration, 64); err == nil {
 					return messageTime.Add(-1 * (time.Duration(d) * time.Millisecond))
 				}
 		}
