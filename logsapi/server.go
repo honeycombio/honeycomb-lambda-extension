@@ -118,16 +118,16 @@ func parseFunctionTimestamp(msg LogMessage, body map[string]interface{}) time.Ti
 	if ok {
 		// duration_ms may be a float (e.g. 43.23), integer (e.g. 54) or a string (e.g. "43")
 		switch duration := dur.(type) {
-			case float64:
-				if d, err := time.ParseDuration(fmt.Sprintf("%.4fms", duration)); err == nil {
-					return messageTime.Add(-1 * d)
-				}
-			case int64:
-				return messageTime.Add(-1 * (time.Duration(duration) * time.Millisecond))
-			case string:
-				if d, err := strconv.ParseFloat(duration, 64); err == nil {
-					return messageTime.Add(-1 * (time.Duration(d) * time.Millisecond))
-				}
+		case float64:
+			if d, err := time.ParseDuration(fmt.Sprintf("%.4fms", duration)); err == nil {
+				return messageTime.Add(-1 * d)
+			}
+		case int64:
+			return messageTime.Add(-1 * (time.Duration(duration) * time.Millisecond))
+		case string:
+			if d, err := strconv.ParseFloat(duration, 64); err == nil {
+				return messageTime.Add(-1 * (time.Duration(d) * time.Millisecond))
+			}
 		}
 	}
 

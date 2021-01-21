@@ -22,7 +22,7 @@ type LogType string
 
 const (
 	// Local hostname according to process running in extension env
-	localHostname= "sandbox"
+	localHostname = "sandbox"
 
 	// HTTPProtocol is the protocol that we receive logs over
 	HTTPProtocol Protocol = "HTTP"
