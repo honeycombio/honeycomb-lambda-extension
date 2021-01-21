@@ -102,6 +102,14 @@ func TestLogMessage(t *testing.T) {
 	assert.Equal(t, "bar", events[2].Data["foo"])
 }
 
+func TestTimestampsFunctionMessageNoJson(t *testing.T) {
+	events := postMessages(t, []LogMessage{nonJsonFunctionMessage})
+	event := events[0]
+
+	ts, _ := time.Parse(time.RFC3339, "2020-11-03T21:10:25.150Z")
+	assert.Equal(t, ts.String(), event.Timestamp.String())
+}
+
 func TestTimestampsPlatformMessage(t *testing.T) {
 	events := postMessages(t, []LogMessage{platformStartMessage})
 	event := events[0]
