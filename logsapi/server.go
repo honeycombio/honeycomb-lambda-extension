@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 	"time"
 
 	libhoney "github.com/honeycombio/libhoney-go"
@@ -52,32 +53,85 @@ func handler(libhoneyClient *libhoney.Client) http.HandlerFunc {
 			event := libhoneyClient.NewEvent()
 			event.AddField("lambda_extension.type", msg.Type)
 
-			ts, err := time.Parse(time.RFC3339, msg.Time)
-			if err != nil {
-				// Couldn't parse timestamp from AWS, so let libhoney default to time.Now()
-				// and log this as lambda_extension.time
-				event.AddField("lambda_extension.time", msg.Time)
-			} else {
-				event.Timestamp = ts
-			}
-
 			switch v := msg.Record.(type) {
 			case string:
 				// attempt to parse as json
 				var record map[string]interface{}
-				if err = json.Unmarshal([]byte(v), &record); err != nil {
+				err := json.Unmarshal([]byte(v), &record)
+				if err != nil {
+					event.Timestamp = parseMessageTimestamp(event, msg)
 					event.AddField("record", msg.Record)
 				} else {
+					event.Timestamp = parseFunctionTimestamp(msg, record)
 					event.Add(record)
 				}
 			default:
 				// In the case of platform.start and platform.report messages, msg.Record
 				// will be a map[string]interface{}.
+				event.Timestamp = parseMessageTimestamp(event, msg)
 				event.Add(msg.Record)
 			}
 			event.Send()
 		}
 	}
+}
+
+// parseMessageTimestamp is a helper function that tries to parse the timestamp from the
+// log event payload. If it cannot parse the timestamp, it returns the current timestamp.
+func parseMessageTimestamp(event *libhoney.Event, msg LogMessage) time.Time {
+	ts, err := time.Parse(time.RFC3339, msg.Time)
+	if err != nil {
+		event.AddField("lambda_extension.time", msg.Time)
+		return time.Now()
+	}
+	return ts
+}
+
+// parseFunctionTimestamp is a helper function that will return a timestamp for a function log message.
+// There are some precedence rules:
+//
+// 1. Look for a "timestamp" field in the message body.
+// 2. If not present, look for a "duration_ms" field and subtract it from the log event
+//    timestamp.
+// 3. If neither are present, just use the log timestamp.
+func parseFunctionTimestamp(msg LogMessage, body map[string]interface{}) time.Time {
+
+	// parse the logs API event time in case we need it. If it's invalid, just take the time now.
+	messageTime, err := time.Parse(time.RFC3339, msg.Time)
+	if err != nil {
+		messageTime = time.Now()
+	}
+
+	ts, ok := body["timestamp"]
+	if ok {
+		strTs, okStr := ts.(string)
+		if okStr {
+			parsed, err := time.Parse(time.RFC3339, strTs)
+			if err == nil {
+				return parsed
+			}
+		}
+	}
+
+	dur, ok := body["duration_ms"]
+
+	if ok {
+		// duration_ms may be a float (e.g. 43.23), integer (e.g. 54) or a string (e.g. "43")
+		switch duration := dur.(type) {
+		case float64:
+			if d, err := time.ParseDuration(fmt.Sprintf("%.4fms", duration)); err == nil {
+				return messageTime.Add(-1 * d)
+			}
+		case int64:
+			return messageTime.Add(-1 * (time.Duration(duration) * time.Millisecond))
+		case string:
+			if d, err := strconv.ParseFloat(duration, 64); err == nil {
+				return messageTime.Add(-1 * (time.Duration(d) * time.Millisecond))
+			}
+		}
+	}
+
+	return messageTime
 }
 
 // StartHTTPServer starts a logs API server on the specified port. The server will receive
