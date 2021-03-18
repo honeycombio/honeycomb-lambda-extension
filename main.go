@@ -119,6 +119,8 @@ func main() {
 				log.Warn("Error from NextEvent: ", err)
 				continue
 			}
+			// Flush events queue after waking up
+			client.Flush()
 			if res.EventType == extension.Shutdown {
 				log.Debug("Received SHUTDOWN event. Exiting.")
 				cancel()
