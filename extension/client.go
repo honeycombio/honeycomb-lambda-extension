@@ -8,10 +8,11 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os"
 	"path"
 	"strings"
 
-	log "github.com/sirupsen/logrus"
+	logrus "github.com/sirupsen/logrus"
 )
 
 // EventType represents the type of events received from /event/next
@@ -28,6 +29,25 @@ const (
 	// extensionIdentifierHeader is a uuid that is required on subsequent requests
 	extensionIdentifierHeader = "Lambda-Extension-Identifier"
 )
+
+var (
+	// set up logging defaults for our own logging output
+	log = logrus.WithFields(logrus.Fields{
+		"source": "hny-lambda-ext-client",
+	})
+)
+
+func init() {
+	envLogLevel, ok := os.LookupEnv("HNY_LOG_LEVEL")
+	if !ok {
+		envLogLevel = "info"
+	}
+	parsedLogLevel, err := logrus.ParseLevel(envLogLevel)
+	if err != nil {
+		parsedLogLevel = logrus.InfoLevel
+	}
+	logrus.SetLevel(parsedLogLevel)
+}
 
 // Client is used to communicate with the Extensions API
 type Client struct {

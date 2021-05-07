@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
 	libhoney "github.com/honeycombio/libhoney-go"
-	log "github.com/sirupsen/logrus"
+	logrus "github.com/sirupsen/logrus"
 )
 
 // LogMessage is a message sent from the Logs API
@@ -19,10 +20,30 @@ type LogMessage struct {
 	Record interface{} `json:"record"`
 }
 
+var (
+	// set up logging defaults for our own logging output
+	log = logrus.WithFields(logrus.Fields{
+		"source": "hny-lambda-ext-logsapi",
+	})
+)
+
+func init() {
+	envLogLevel, ok := os.LookupEnv("HNY_LOG_LEVEL")
+	if !ok {
+		envLogLevel = "info"
+	}
+	parsedLogLevel, err := logrus.ParseLevel(envLogLevel)
+	if err != nil {
+		parsedLogLevel = logrus.InfoLevel
+	}
+	logrus.SetLevel(parsedLogLevel)
+}
+
 // handler receives batches of log messages from the Lambda Logs API. Each
 // LogMessage is sent to Honeycomb as a separate event.
 func handler(libhoneyClient *libhoney.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		log.Debug("handler - log batch received")
 		body, err := ioutil.ReadAll(r.Body)
 		if err != nil {
 			log.Warn("Error", err)
@@ -72,6 +93,7 @@ func handler(libhoneyClient *libhoney.Client) http.HandlerFunc {
 				event.Add(msg.Record)
 			}
 			event.Send()
+			log.Debug("handler - event enqueued")
 		}
 	}
 }
