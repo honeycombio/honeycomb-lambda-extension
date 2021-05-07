@@ -11,7 +11,7 @@ import (
 	"path"
 	"strings"
 
-	log "github.com/sirupsen/logrus"
+	logrus "github.com/sirupsen/logrus"
 )
 
 // EventType represents the type of events received from /event/next
@@ -27,6 +27,13 @@ const (
 	extensionNameHeader = "Lambda-Extension-Name"
 	// extensionIdentifierHeader is a uuid that is required on subsequent requests
 	extensionIdentifierHeader = "Lambda-Extension-Identifier"
+)
+
+var (
+	// set up logging defaults for our own logging output
+	log = logrus.WithFields(logrus.Fields{
+		"source": "hny-lambda-ext-client",
+	})
 )
 
 // Client is used to communicate with the Extensions API

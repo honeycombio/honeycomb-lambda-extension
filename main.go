@@ -11,7 +11,7 @@ import (
 	"syscall"
 
 	libhoney "github.com/honeycombio/libhoney-go"
-	log "github.com/sirupsen/logrus"
+	logrus "github.com/sirupsen/logrus"
 
 	"github.com/honeycombio/honeycomb-lambda-extension/extension"
 	"github.com/honeycombio/honeycomb-lambda-extension/logsapi"
@@ -42,7 +42,24 @@ var (
 	// when run in local mode, we don't attempt to register the extension or subscribe
 	// to log events - useful for testing
 	localMode = false
+
+	// set up logging defaults for our own logging output
+	log = logrus.WithFields(logrus.Fields{
+		"source": "hny-lambda-ext-main",
+	})
 )
+
+func init() {
+	envLogLevel, ok := os.LookupEnv("HNY_LOG_LEVEL")
+	if !ok {
+		envLogLevel = "info"
+	}
+	parsedLogLevel, err := logrus.ParseLevel(envLogLevel)
+	if err != nil {
+		parsedLogLevel = logrus.InfoLevel
+	}
+	logrus.SetLevel(parsedLogLevel)
+}
 
 func main() {
 	flag.BoolVar(&localMode, "localMode", false, "do not attempt to register or subscribe")
