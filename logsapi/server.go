@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"strconv"
 	"time"
 
@@ -26,18 +25,6 @@ var (
 		"source": "hny-lambda-ext-logsapi",
 	})
 )
-
-func init() {
-	envLogLevel, ok := os.LookupEnv("HNY_LOG_LEVEL")
-	if !ok {
-		envLogLevel = "info"
-	}
-	parsedLogLevel, err := logrus.ParseLevel(envLogLevel)
-	if err != nil {
-		parsedLogLevel = logrus.InfoLevel
-	}
-	logrus.SetLevel(parsedLogLevel)
-}
 
 // handler receives batches of log messages from the Lambda Logs API. Each
 // LogMessage is sent to Honeycomb as a separate event.

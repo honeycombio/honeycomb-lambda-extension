@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"os"
 	"path"
 	"strings"
 
@@ -36,18 +35,6 @@ var (
 		"source": "hny-lambda-ext-client",
 	})
 )
-
-func init() {
-	envLogLevel, ok := os.LookupEnv("HNY_LOG_LEVEL")
-	if !ok {
-		envLogLevel = "info"
-	}
-	parsedLogLevel, err := logrus.ParseLevel(envLogLevel)
-	if err != nil {
-		parsedLogLevel = logrus.InfoLevel
-	}
-	logrus.SetLevel(parsedLogLevel)
-}
 
 // Client is used to communicate with the Extensions API
 type Client struct {
