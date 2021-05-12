@@ -96,6 +96,7 @@ func handler(libhoneyClient *libhoney.Client) http.HandlerFunc {
 // parseMessageTimestamp is a helper function that tries to parse the timestamp from the
 // log event payload. If it cannot parse the timestamp, it returns the current timestamp.
 func parseMessageTimestamp(event *libhoney.Event, msg LogMessage) time.Time {
+	log.Debug("parseMessageTimestamp")
 	ts, err := time.Parse(time.RFC3339, msg.Time)
 	if err != nil {
 		event.AddField("lambda_extension.time", msg.Time)
@@ -107,16 +108,24 @@ func parseMessageTimestamp(event *libhoney.Event, msg LogMessage) time.Time {
 // parseFunctionTimestamp is a helper function that will return a timestamp for a function log message.
 // There are some precedence rules:
 //
-// 1. Look for a "timestamp" field in the message body.
-// 2. If not present, look for a "duration_ms" field and subtract it from the log event
+// 1. Look for a "time" field from a libhoney transmission in the message body.
+// 2. Look for a "timestamp" field in the message body.
+// 3. If not present, look for a "duration_ms" field and subtract it from the log event
 //    timestamp.
-// 3. If neither are present, just use the log timestamp.
+// 4. If neither are present, just use the log timestamp.
 func parseFunctionTimestamp(msg LogMessage, body map[string]interface{}) time.Time {
+	log.Debug("parseFunctionTimestamp")
 
-	// parse the logs API event time in case we need it. If it's invalid, just take the time now.
-	messageTime, err := time.Parse(time.RFC3339, msg.Time)
-	if err != nil {
-		messageTime = time.Now()
+	libhoneyTs, ok := body["time"]
+	if ok {
+		strLibhoneyTs, okStr := libhoneyTs.(string)
+		if okStr {
+			parsed, err := time.Parse(time.RFC3339, strLibhoneyTs)
+			if err == nil {
+				log.Debug("Timestamp from 'time'")
+				return parsed
+			}
+		}
 	}
 
 	ts, ok := body["timestamp"]
@@ -125,24 +134,36 @@ func parseFunctionTimestamp(msg LogMessage, body map[string]interface{}) time.Ti
 		if okStr {
 			parsed, err := time.Parse(time.RFC3339, strTs)
 			if err == nil {
+				log.Debug("Timestamp from 'timestamp'")
 				return parsed
 			}
 		}
 	}
 
-	dur, ok := body["duration_ms"]
+	// parse the logs API event time in case we need it. If it's invalid, just take the time now.
+	messageTime, err := time.Parse(time.RFC3339, msg.Time)
+	if err != nil {
+		log.Debug("Unable to parse message's Time, defaulting to Now()")
+		messageTime = time.Now()
+	} else {
+		log.Debug("Using message's Time field.")
+	}
 
+	dur, ok := body["duration_ms"]
 	if ok {
 		// duration_ms may be a float (e.g. 43.23), integer (e.g. 54) or a string (e.g. "43")
 		switch duration := dur.(type) {
 		case float64:
 			if d, err := time.ParseDuration(fmt.Sprintf("%.4fms", duration)); err == nil {
+				log.Debug("Timestamp computed from a float64 'duration_ms'")
 				return messageTime.Add(-1 * d)
 			}
 		case int64:
+			log.Debug("Timestamp computed from an int64 'duration_ms'")
 			return messageTime.Add(-1 * (time.Duration(duration) * time.Millisecond))
 		case string:
 			if d, err := strconv.ParseFloat(duration, 64); err == nil {
+				log.Debug("Timestamp computed from a string 'duration_ms'")
 				return messageTime.Add(-1 * (time.Duration(d) * time.Millisecond))
 			}
 		}
