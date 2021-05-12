@@ -16,6 +16,9 @@ import (
 )
 
 var (
+	epochTimestamp     = "1970-01-01T01:01:01.010Z"
+	christmasTimestamp = "2020-12-25T12:34:56.789Z"
+
 	platformStartMessage = LogMessage{
 		Time: "2020-11-03T21:10:25.133Z",
 		Type: "platform.start",
@@ -55,12 +58,20 @@ var (
 		Record: "{\"foo\": \"bar\", \"duration_ms\": 54, \"timestamp\": \"2020-11-03T21:10:25.090Z\"}",
 	}
 
+	functionMessageFromLibhoneyTransmission = LogMessage{
+		Time: epochTimestamp,
+		Type: "function",
+		// 🎄
+		Record: `{"time": "2020-12-25T12:34:56.789Z", "samplerate": 1, "data": {"foo": "bar", "duration_ms": 54} }`,
+	}
+
 	logMessages = []LogMessage{
 		platformStartMessage,
 		nonJsonFunctionMessage,
 		functionMessageWithStringDurationNoTimestamp,
 		functionMessageWithIntDurationNoTimestamp,
 		functionMessageWithTimestamp,
+		functionMessageFromLibhoneyTransmission,
 	}
 )
 
@@ -90,7 +101,7 @@ func postMessages(t *testing.T, messages []LogMessage) []*transmission.Event {
 func TestLogMessage(t *testing.T) {
 	events := postMessages(t, logMessages)
 
-	assert.Equal(t, 5, len(events))
+	assert.Equal(t, 6, len(events))
 
 	assert.Equal(t, "platform.start", events[0].Data["lambda_extension.type"])
 	assert.Equal(t, "function", events[1].Data["lambda_extension.type"])
@@ -100,6 +111,29 @@ func TestLogMessage(t *testing.T) {
 	assert.Equal(t, "$LATEST", events[0].Data["version"])
 	assert.Equal(t, "A basic message to STDOUT", events[1].Data["record"])
 	assert.Equal(t, "bar", events[2].Data["foo"])
+	assert.Equal(t, "bar", events[5].Data["foo"])
+}
+
+func TestLogMessageFromLibhoneyTransmission(t *testing.T) {
+	events := postMessages(t, []LogMessage{
+		{
+			Time: epochTimestamp,
+			Type: "function",
+			// 🎄
+			Record: `{"time": "2020-12-25T12:34:56.789Z", "samplerate": 1, "data": {"foo": "bar", "duration_ms": 54}, "foo": "BOGUS", "duration_ms": "ALSO BOGUS" }`,
+		},
+	})
+
+	parsedEvent := events[0]
+
+	ts, _ := time.Parse(time.RFC3339, christmasTimestamp)
+	assert.Equal(t,
+		ts.String(),
+		parsedEvent.Timestamp.String(),
+		"Want: 🎄! Do not want: epoch. The event's time should be from the time key within the Transmission JSON, not the Lambda Function's log timestamp.",
+	)
+	assert.Equal(t, "bar", parsedEvent.Data["foo"], "The foo and its value should have been found under the data key within the Transmission JSON.")
+	assert.Equal(t, float64(54), parsedEvent.Data["duration_ms"], "The duration should have been found under the data key within the Transmission JSON.")
 }
 
 func TestTimestampsFunctionMessageNoJson(t *testing.T) {
