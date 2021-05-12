@@ -64,14 +64,22 @@ func handler(libhoneyClient *libhoney.Client) http.HandlerFunc {
 			switch v := msg.Record.(type) {
 			case string:
 				// attempt to parse as json
-				var record map[string]interface{}
-				err := json.Unmarshal([]byte(v), &record)
+				var jsonRecord map[string]interface{}
+				err := json.Unmarshal([]byte(v), &jsonRecord)
 				if err != nil {
+					// not JSON; we'll treat this log entry as a timestamped string
 					event.Timestamp = parseMessageTimestamp(event, msg)
 					event.AddField("record", msg.Record)
 				} else {
-					event.Timestamp = parseFunctionTimestamp(msg, record)
-					event.Add(record)
+					// we've got JSON
+					event.Timestamp = parseFunctionTimestamp(msg, jsonRecord)
+					if jsonRecord["data"] != nil {
+						// JSON likely emitted by a Beeline's libhoney; add the fields from the data key
+						event.Add(jsonRecord["data"])
+					} else {
+						// seems like just flat JSON; splat those fields into the event
+						event.Add(jsonRecord)
+					}
 				}
 			default:
 				// In the case of platform.start and platform.report messages, msg.Record
