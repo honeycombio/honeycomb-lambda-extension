@@ -4,6 +4,15 @@ orbs:
   go: circleci/go@1.5.0
   aws-cli: circleci/aws-cli@0.1.13
 
+matrix_aws_regions: &matrix_aws_regions
+  matrix:
+    parameters:
+      aws_region: [ "ap-northeast-1", "ap-northeast-2", "ap-south-1", "ap-southeast-1", "ap-southeast-2",
+                    "ca-central-1",
+                    "eu-central-1", "eu-north-1", "eu-west-1", "eu-west-2", "eu-west-3",
+                    "sa-east-1",
+                    "us-east-1", "us-east-2", "us-west-1", "us-west-2" ]
+
 jobs:
   test:
     parameters:
@@ -43,6 +52,9 @@ jobs:
   publish_aws:
     docker:
       - image: circleci/golang:1.15
+    parameters:
+      aws_region:
+        type: string
     steps:
       - attach_workspace:
           at: ~/
@@ -51,10 +63,11 @@ jobs:
       - aws-cli/configure:
           aws-access-key-id: AWS_ACCESS_KEY_ID
           aws-secret-access-key: AWS_SECRET_ACCESS_KEY
-          aws-region: AWS_REGION
       - run:
           name: "Publish extension to AWS"
-          command: ./publish.sh
+          command: make publish_aws
+          environment:
+            AWS_REGION: << parameters.aws_region >>
   publish_github:
     docker:
       - image: cibuilds/github:0.13.0
@@ -132,6 +145,7 @@ workflows:
             - build_extension
       - publish_aws:
           context: Honeycomb Secrets for Public Repos
+          <<: *matrix_aws_regions
           filters:
             tags:
               only: /^v.*/
