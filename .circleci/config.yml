@@ -32,11 +32,8 @@ jobs:
       - go/mod-download
       - go/save-cache
       - run:
-          name: "Build Binary"
-          command: |
-            echo "Building extension"
-            mkdir -p ~/artifacts/extensions
-            GOOS=linux GOARCH=amd64 go build -o ~/artifacts/extensions/honeycomb-lambda-extension .
+          name: "Build Binary & Extension ZIP"
+          command: make build zip
       - persist_to_workspace:
           root: ~/
           paths:
