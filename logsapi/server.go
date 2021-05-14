@@ -61,11 +61,11 @@ func handler(libhoneyClient *libhoney.Client) http.HandlerFunc {
 			event := libhoneyClient.NewEvent()
 			event.AddField("lambda_extension.type", msg.Type)
 
-			switch v := msg.Record.(type) {
+			switch record := msg.Record.(type) {
 			case string:
-				// attempt to parse as json
+				// attempt to parse record as json
 				var jsonRecord map[string]interface{}
-				err := json.Unmarshal([]byte(v), &jsonRecord)
+				err := json.Unmarshal([]byte(record), &jsonRecord)
 				if err != nil {
 					// not JSON; we'll treat this log entry as a timestamped string
 					event.Timestamp = parseMessageTimestamp(event, msg)
@@ -73,11 +73,12 @@ func handler(libhoneyClient *libhoney.Client) http.HandlerFunc {
 				} else {
 					// we've got JSON
 					event.Timestamp = parseFunctionTimestamp(msg, jsonRecord)
-					if jsonRecord["data"] != nil {
-						// JSON likely emitted by a Beeline's libhoney; add the fields from the data key
-						event.Add(jsonRecord["data"])
-					} else {
-						// seems like just flat JSON; splat those fields into the event
+					switch data := jsonRecord["data"].(type) {
+					case map[string]interface{}:
+						// data key contains a map, likely emitted by a Beeline's libhoney, so add the fields from it
+						event.Add(data)
+					default:
+						// data is not a map, so treat the record as flat JSON adding all keys as fields
 						event.Add(jsonRecord)
 					}
 				}
