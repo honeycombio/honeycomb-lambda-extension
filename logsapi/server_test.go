@@ -65,6 +65,12 @@ var (
 		Record: `{"time": "2020-12-25T12:34:56.789Z", "samplerate": 1, "data": {"foo": "bar", "duration_ms": 54} }`,
 	}
 
+	functionMessageJsonAndDataIsNotMappable = LogMessage{
+		Time:   epochTimestamp,
+		Type:   "function",
+		Record: `{"timestamp": "2020-12-25T12:34:56.789Z", "data": "an android" }`,
+	}
+
 	logMessages = []LogMessage{
 		platformStartMessage,
 		nonJsonFunctionMessage,
@@ -72,6 +78,7 @@ var (
 		functionMessageWithIntDurationNoTimestamp,
 		functionMessageWithTimestamp,
 		functionMessageFromLibhoneyTransmission,
+		functionMessageJsonAndDataIsNotMappable,
 	}
 )
 
@@ -101,7 +108,7 @@ func postMessages(t *testing.T, messages []LogMessage) []*transmission.Event {
 func TestLogMessage(t *testing.T) {
 	events := postMessages(t, logMessages)
 
-	assert.Equal(t, 6, len(events))
+	assert.Equal(t, 7, len(events))
 
 	assert.Equal(t, "platform.start", events[0].Data["lambda_extension.type"])
 	assert.Equal(t, "function", events[1].Data["lambda_extension.type"])
@@ -112,6 +119,7 @@ func TestLogMessage(t *testing.T) {
 	assert.Equal(t, "A basic message to STDOUT", events[1].Data["record"])
 	assert.Equal(t, "bar", events[2].Data["foo"])
 	assert.Equal(t, "bar", events[5].Data["foo"])
+	assert.Equal(t, "an android", events[6].Data["data"])
 }
 
 func TestLogMessageFromLibhoneyTransmission(t *testing.T) {
@@ -134,6 +142,14 @@ func TestLogMessageFromLibhoneyTransmission(t *testing.T) {
 	)
 	assert.Equal(t, "bar", parsedEvent.Data["foo"], "The foo and its value should have been found under the data key within the Transmission JSON.")
 	assert.Equal(t, float64(54), parsedEvent.Data["duration_ms"], "The duration should have been found under the data key within the Transmission JSON.")
+}
+
+func TestLogMessageJsonWithUnmappableData(t *testing.T) {
+	events := postMessages(t, []LogMessage{functionMessageJsonAndDataIsNotMappable})
+
+	parsedEvent := events[0]
+
+	assert.Equal(t, "an android", parsedEvent.Data["data"], "The Data map on the Event should contain a field named 'data' with a single value.")
 }
 
 func TestTimestampsFunctionMessageNoJson(t *testing.T) {
