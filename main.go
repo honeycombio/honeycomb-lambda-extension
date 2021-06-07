@@ -92,6 +92,12 @@ func main() {
 		log.Warn("Could not initialize libhoney", err)
 	}
 
+	// off-the-cuff Honey API response logger
+	go func() {
+		response := <-client.TxResponses()
+		log.Debug("Libhoney TxResponse: ", response.StatusCode)
+	}()
+
 	// initialize Logs API HTTP server
 	go logsapi.StartHTTPServer(logsServerPort, client)
 
@@ -157,10 +163,21 @@ func libhoneyConfig() libhoney.ClientConfig {
 		return libhoney.ClientConfig{}
 	}
 
+	var libhoneyLogger libhoney.Logger
+	currentLogLevel := logrus.GetLevel()
+	if currentLogLevel == logrus.DebugLevel || currentLogLevel == logrus.TraceLevel {
+		libhoneyLogger = logrus.WithFields(logrus.Fields{
+			"source": "hny-lambda-ext-libhoney",
+		})
+	} else {
+		libhoneyLogger = nil
+	}
+
 	return libhoney.ClientConfig{
 		APIKey:  apiKey,
 		Dataset: dataset,
 		APIHost: apiHost,
+		Logger:  libhoneyLogger,
 	}
 }
 
