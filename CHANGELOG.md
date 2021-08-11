@@ -1,5 +1,14 @@
 # Honeycomb Lambda Extension Changelog
 
+## 8.0.0 (2021-05-17)
+### Fixed
+- adds some configurable logging for troubleshooting extension behavior (#20)
+- parse JSON emitted to STDOUT from Beelines/libhoney and send along as events (#21)
+
+## 7.0.0 (2021-05-14)
+### Fixed
+- Flush events queue on wake up. (#16)
+
 ## Version 4 (2020-12-09)
 
 - The Logs API returns 202 on subscribe. We were checking for 200.

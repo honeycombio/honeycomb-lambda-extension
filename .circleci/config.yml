@@ -144,3 +144,13 @@ workflows:
           requires:
             - test
             - build_extension
+      - publish_github:
+          context: Honeycomb Secrets for Public Repos
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
+          requires:
+            - test
+            - build_extension
