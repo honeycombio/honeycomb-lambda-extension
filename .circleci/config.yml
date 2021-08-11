@@ -1,15 +1,15 @@
 version: 2.1
 
 orbs:
-  go: circleci/go@1.5.0
-  aws-cli: circleci/aws-cli@0.1.13
+  go: circleci/go@1.7.0
+  aws-cli: circleci/aws-cli@2.0.3
 
 jobs:
   test:
     parameters:
       goversion:
         type: "string"
-        default: "1.14"
+        default: "1.16"
     executor:
       name: go/default
       tag: << parameters.goversion >>
@@ -25,7 +25,7 @@ jobs:
   build_extension:
     executor:
       name: go/default
-      tag: "1.15"
+      tag: "1.16"
     steps:
       - checkout
       - go/load-cache
@@ -45,13 +45,13 @@ jobs:
           path: ~/artifacts
   publish_aws:
     docker:
-      - image: circleci/golang:1.15
+      - image: cimg/go:1.16
     steps:
       - attach_workspace:
           at: ~/
       - checkout
       - aws-cli/install
-      - aws-cli/configure:
+      - aws-cli/setup:
           aws-access-key-id: AWS_ACCESS_KEY_ID
           aws-secret-access-key: AWS_SECRET_ACCESS_KEY
           aws-region: AWS_REGION
@@ -74,12 +74,12 @@ jobs:
           command: ghr -draft -n ${CIRCLE_TAG} -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} ${CIRCLE_TAG} ~/artifacts/extensions/
   publish_s3:
     docker:
-      - image: circleci/golang:1.15
+      - image: cimg/go:1.16
     steps:
       - attach_workspace:
           at: ~/
       - aws-cli/install
-      - aws-cli/configure:
+      - aws-cli/setup:
           aws-access-key-id: AWS_ACCESS_KEY_ID
           aws-secret-access-key: AWS_SECRET_ACCESS_KEY
           aws-region: AWS_REGION
@@ -108,6 +108,7 @@ workflows:
               goversion:
                 - "1.14"
                 - "1.15"
+                - "1.16"
 
   build:
     jobs:
@@ -134,6 +135,16 @@ workflows:
             - test
             - build_extension
       - publish_aws:
+          context: Honeycomb Secrets for Public Repos
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
+          requires:
+            - test
+            - build_extension
+      - publish_github:
           context: Honeycomb Secrets for Public Repos
           filters:
             tags:
