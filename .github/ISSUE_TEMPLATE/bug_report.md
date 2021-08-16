@@ -17,8 +17,8 @@ Please see our [OSS process document](https://github.com/honeycombio/home/blob/m
 
 **Versions**
 
-Go:
-Lambda extension:
+- Lambda runtime:
+- Lambda extension:
 
 
 **Steps to reproduce**
