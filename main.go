@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/honeycombio/honeycomb-lambda-extension/extension"
 	"github.com/honeycombio/honeycomb-lambda-extension/logsapi"
+	"github.com/honeycombio/libhoney-go/transmission"
 )
 
 var (
@@ -50,15 +52,12 @@ var (
 )
 
 func init() {
-	envLogLevel, ok := os.LookupEnv("HNY_LOG_LEVEL")
-	if !ok {
-		envLogLevel = "info"
+	debug := envOrElseBool("HNY_DEBUG", false)
+	logLevel := logrus.InfoLevel
+	if debug {
+		logLevel = logrus.DebugLevel
 	}
-	parsedLogLevel, err := logrus.ParseLevel(envLogLevel)
-	if err != nil {
-		parsedLogLevel = logrus.InfoLevel
-	}
-	logrus.SetLevel(parsedLogLevel)
+	logrus.SetLevel(logLevel)
 }
 
 func main() {
@@ -88,6 +87,10 @@ func main() {
 	// initialize libhoney
 	libhoney.UserAgentAddition = fmt.Sprintf("honeycomb-lambda-extension/%s", version)
 	client, err := libhoney.NewClient(libhoneyConfig())
+	debug := envOrElseBool("HNY_DEBUG", false)
+	if debug {
+		go readResponses(client.TxResponses())
+	}
 	if err != nil {
 		log.Warn("Could not initialize libhoney", err)
 	}
@@ -185,4 +188,25 @@ func envOrElseBool(key string, fallback bool) bool {
 		return v
 	}
 	return fallback
+}
+
+func readResponses(responses chan transmission.Response) {
+	for r := range responses {
+		var metadata string
+		if r.Metadata != nil {
+			metadata = fmt.Sprintf("%s", r.Metadata)
+		}
+		if r.StatusCode >= 200 && r.StatusCode < 300 {
+			message := "Successfully sent event to Honeycomb"
+			if metadata != "" {
+				message += fmt.Sprintf(": %s", metadata)
+			}
+			log.Debugf("%s", message)
+		} else if r.StatusCode == http.StatusUnauthorized {
+			log.Debugf("Error sending event to honeycomb! The APIKey was rejected, please verify your APIKey. %s", metadata)
+		} else {
+			log.Debugf("Error sending event to Honeycomb! %s had code %d, err %v and response body %s",
+				metadata, r.StatusCode, r.Err, r.Body)
+		}
+	}
 }
