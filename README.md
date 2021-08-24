@@ -16,7 +16,7 @@ shutdown events.
 To use the honeycomb-lambda-extension with a lambda function, it must be configured as a layer. This can be done with the aws CLI tool:
 
 ```
-$ aws lambda update-code-configuration --function-name MyLambdaFunction --layers "arn:aws:lambda:<AWS_REGION>:702835727665:layer:honeycomb-lambda-extension:6"
+$ aws lambda update-code-configuration --function-name MyLambdaFunction --layers "arn:aws:lambda:<AWS_REGION>:702835727665:layer:honeycomb-lambda-extension:8"
 ```
 
 Substituting `<AWS_REGION>` for the AWS region you want to deploy this in.
@@ -48,7 +48,7 @@ resource "aws_lambda_function" "extensions-demo-example-lambda-python" {
         }
         
         layers = [
-            "arn:aws:lambda:us-east-1:702835727665:layer:honeycomb-lambda-extension:6"
+            "arn:aws:lambda:us-east-1:702835727665:layer:honeycomb-lambda-extension:8"
         ]
 }
 ```

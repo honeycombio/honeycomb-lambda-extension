@@ -1,5 +1,9 @@
 # Honeycomb Lambda Extension Changelog
 
+## 9.0.0 (2021-08-25)
+### Added
+- Debugging mode via environment variable #38
+
 ## 8.0.0 (2021-05-17)
 ### Fixed
 - adds some configurable logging for troubleshooting extension behavior (#20)
