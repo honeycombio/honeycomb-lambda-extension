@@ -88,6 +88,7 @@ func handler(libhoneyClient *libhoney.Client) http.HandlerFunc {
 				event.Timestamp = parseMessageTimestamp(event, msg)
 				event.Add(msg.Record)
 			}
+			event.Metadata, _ = event.Fields()["name"]
 			event.Send()
 			log.Debug("handler - event enqueued")
 		}
