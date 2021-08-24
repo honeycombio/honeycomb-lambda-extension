@@ -40,6 +40,7 @@ var (
 	apiKey  = os.Getenv("LIBHONEY_API_KEY")
 	dataset = os.Getenv("LIBHONEY_DATASET")
 	apiHost = os.Getenv("LIBHONEY_API_HOST")
+	debug = envOrElseBool("HONEYCOMB_DEBUG", false)
 
 	// when run in local mode, we don't attempt to register the extension or subscribe
 	// to log events - useful for testing
@@ -52,7 +53,6 @@ var (
 )
 
 func init() {
-	debug := envOrElseBool("HNY_DEBUG", false)
 	logLevel := logrus.InfoLevel
 	if debug {
 		logLevel = logrus.DebugLevel
@@ -87,7 +87,6 @@ func main() {
 	// initialize libhoney
 	libhoney.UserAgentAddition = fmt.Sprintf("honeycomb-lambda-extension/%s", version)
 	client, err := libhoney.NewClient(libhoneyConfig())
-	debug := envOrElseBool("HNY_DEBUG", false)
 	if debug {
 		go readResponses(client.TxResponses())
 	}
