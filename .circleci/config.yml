@@ -123,7 +123,9 @@ workflows:
             tags:
               only: /.*/
             branches:
-              ignore: /pull\/.*/
+              ignore:
+                - /pull\/.*/
+                - /dependabot\/.*/
       - publish_s3:
           context: Honeycomb Secrets for Public Repos
           filters:
