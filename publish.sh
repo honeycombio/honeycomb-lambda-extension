@@ -29,7 +29,7 @@ zip -r ext-amd64.zip ext-amd64
 for region in ${REGIONS[@]}; do
     RESPONSE=`aws lambda publish-layer-version \
         --layer-name "$EXTENSION_NAME-amd64" \
-        --compatible-architectures amd64
+        --compatible-architectures amd64 \
         --region $region --zip-file "fileb://ext-amd64.zip"`
     VERSION=`echo $RESPONSE | jq -r '.Version'`
     aws --region $region lambda add-layer-version-permission --layer-name "$EXTENSION_NAME-amd64" \
@@ -44,7 +44,7 @@ zip -r ext-arm64.zip ext-arm64
 for region in ${REGIONS[@]}; do
     RESPONSE=`aws lambda publish-layer-version \
         --layer-name "$EXTENSION_NAME-arm64" \
-        --compatible-architectures arm64
+        --compatible-architectures arm64 \
         --region $region --zip-file "fileb://ext-arm64.zip"`
     VERSION=`echo $RESPONSE | jq -r '.Version'`
     aws --region $region lambda add-layer-version-permission --layer-name "$EXTENSION_NAME-arm64" \
