@@ -23,6 +23,12 @@ jobs:
           failfast: true
           race: true
   build_extension:
+    parameters:
+      arch:
+        description: Target architecture
+        type: enum
+        enum: ["amd64", "arm64"]
+        default: "amd64"
     executor:
       name: go/default
       tag: "1.16"
@@ -33,10 +39,13 @@ jobs:
       - go/save-cache
       - run:
           name: "Build Binary"
+          environment:
+            GOOS: linux
+            GOARCH: << parameters.arch >>
           command: |
             echo "Building extension"
             mkdir -p ~/artifacts/extensions
-            GOOS=linux GOARCH=amd64 go build -o ~/artifacts/extensions/honeycomb-lambda-extension .
+            go build -o ~/artifacts/extensions/honeycomb-lambda-extension-<< parameters.arch >> .
       - persist_to_workspace:
           root: ~/
           paths:
@@ -90,7 +99,7 @@ jobs:
             ls -l ~/artifacts/extensions/*
       - run:
           name: "S3 Release"
-          command: aws s3 cp ~/artifacts/extensions/honeycomb-lambda-extension s3://honeycomb-builds/honeycombio/honeycomb-lambda-extension/${CIRCLE_TAG}/honeycomb-lambda-extension
+          command: aws s3 cp ~/artifacts/extensions s3://honeycomb-builds/honeycombio/honeycomb-lambda-extension/${CIRCLE_TAG}/ --recursive
 
 workflows:
   nightly:
@@ -127,6 +136,11 @@ workflows:
               ignore:
                 - /pull\/.*/
                 - /dependabot\/.*/
+          matrix:
+            parameters:
+              arch:
+                - "amd64"
+                - "arm64"
       - publish_s3:
           context: Honeycomb Secrets for Public Repos
           filters:
