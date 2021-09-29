@@ -13,13 +13,18 @@ shutdown events.
 
 ## Usage
 
-To use the honeycomb-lambda-extension with a lambda function, it must be configured as a layer. This can be done with the aws CLI tool:
+To use the honeycomb-lambda-extension with a lambda function, it must be configured as a layer. There are two versions of the extension available:
+- honeycomb-lambda-extension-amd64 (for functions running on `x86_64` architecture)
+- honeycomb-lambda-extension-arm64 (for functions running on `arm64` architecture)
+
+You can add the extension as a layer with the AWS CLI tool:
 
 ```
-$ aws lambda update-code-configuration --function-name MyLambdaFunction --layers "arn:aws:lambda:<AWS_REGION>:702835727665:layer:honeycomb-lambda-extension:8"
+$ aws lambda update-code-configuration --function-name MyLambdaFunction --layers "arn:aws:lambda:<AWS_REGION>:702835727665:layer:honeycomb-lambda-extension-<ARCH>:9"
 ```
 
-Substituting `<AWS_REGION>` for the AWS region you want to deploy this in.
+- `<ARCH>` --> `amd64` or `arm64`
+- `<AWS_REGION>` --> AWS region you want to deploy this in
 
 The extension will attempt to read the following environment variables from your lambda function configuration:
 
@@ -49,31 +54,29 @@ resource "aws_lambda_function" "extensions-demo-example-lambda-python" {
         }
         
         layers = [
-            "arn:aws:lambda:us-east-1:702835727665:layer:honeycomb-lambda-extension:8"
+            "arn:aws:lambda:<AWS_REGION>:702835727665:layer:honeycomb-lambda-extension-<ARCH>:9"
         ]
 }
 ```
 
-This example uses `us-east-1`, but as above, you may substitute this section of the arn with any AWS region.
-
 ## Self Hosting - Building & Deploying
 
 You can also deploy this extension as a layer in your own AWS account. To do that, simply build
-the extension and publish it yourself. Again, with the aws CLI tool:
+the extension and publish it yourself. Again, with the AWS CLI tool:
 
 ```
 $ mkdir -p bin/extensions
-$ GOOS=linux GOARCH=amd64 go build -o bin/extensions/honeycomb-lambda-extension main.go
+$ GOOS=linux GOARCH=<ARCH> go build -o bin/extensions/honeycomb-lambda-extension main.go
 $ cd bin
 $ zip -r extension.zip extensions
 $ aws lambda publish-layer-version --layer-name honeycomb-lambda-extension \
     --region <AWS_REGION> --zip-file "fileb://extension.zip"
 ```
 
-Again, substituting `<AWS_REGION>` as appropriate.
+Again, substituting `<AWS_REGION>` and `<ARCH>` as appropriate.
 
 ## Contributions
 
-Features, bug fixes and other changes to libhoney are gladly accepted. Please open issues or a pull request with your change. Remember to add your name to the CONTRIBUTORS file!
+Features, bug fixes and other changes to the extension are gladly accepted. Please open issues or a pull request with your change. Remember to add your name to the CONTRIBUTORS file!
 
 All contributions will be released under the Apache License 2.0.
