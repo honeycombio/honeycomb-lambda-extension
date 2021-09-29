@@ -1,5 +1,22 @@
 # Honeycomb Lambda Extension Changelog
 
+## 10.0.0 (2021-09-29)
+
+# Added
+
+- Support ARM build (#46)
+
+### Maintenance
+
+- Change maintenance badge to maintained (#44)
+- Add Stalebot (#45)
+- Add NOTICE (#42)
+- Add note about honeycomb_debug env var (#41)
+- Update CI config (#40)
+- Bump github.com/stretchr/testify from 1.6.1 to 1.7.0 (#28)
+- Bump github.com/sirupsen/logrus from 1.7.0 to 1.8.1 (#30)
+- Bump github.com/honeycombio/libhoney-go from 1.14.1 to 1.15.4 (#32)
+
 ## 9.0.0 (2021-08-25)
 ### Added
 - Debugging mode via environment variable #38
