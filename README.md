@@ -14,7 +14,7 @@ shutdown events.
 ## Usage
 
 To use the honeycomb-lambda-extension with a lambda function, it must be configured as a layer. There are two versions of the extension available:
-- honeycomb-lambda-extension-amd64 (for functions running on `x86_64` architecture)
+- honeycomb-lambda-extension-x86_64 (for functions running on `x86_64` architecture)
 - honeycomb-lambda-extension-arm64 (for functions running on `arm64` architecture)
 
 You can add the extension as a layer with the AWS CLI tool:
