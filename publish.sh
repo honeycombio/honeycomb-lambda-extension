@@ -28,12 +28,12 @@ zip -r ext-amd64.zip ext-amd64
 
 for region in ${REGIONS[@]}; do
     RESPONSE=`aws lambda publish-layer-version \
-        --layer-name "$EXTENSION_NAME-amd64" \
-        --compatible-architectures amd64 \
+        --layer-name "$EXTENSION_NAME-x86_64" \
+        --compatible-architectures x86_64 \
         --region $region --zip-file "fileb://ext-amd64.zip"`
     VERSION=`echo $RESPONSE | jq -r '.Version'`
-    aws --region $region lambda add-layer-version-permission --layer-name "$EXTENSION_NAME-amd64" \
-        --version-number $VERSION --statement-id "$EXTENSION_NAME-amd64-$VERSION-$region" \
+    aws --region $region lambda add-layer-version-permission --layer-name "$EXTENSION_NAME-x86_64" \
+        --version-number $VERSION --statement-id "$EXTENSION_NAME-x86_64-$VERSION-$region" \
         --principal "*" --action lambda:GetLayerVersion
 done
 
