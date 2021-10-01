@@ -44,8 +44,8 @@ jobs:
             GOARCH: << parameters.arch >>
           command: |
             echo "Building extension"
-            mkdir -p ~/artifacts/extensions
-            go build -o ~/artifacts/extensions/honeycomb-lambda-extension-<< parameters.arch >> .
+            mkdir ~/artifacts
+            go build -o ~/artifacts/honeycomb-lambda-extension-<< parameters.arch >> .
       - persist_to_workspace:
           root: ~/
           paths:
@@ -77,10 +77,10 @@ jobs:
           name: "Artifacts being published"
           command: |
             echo "about to publish to tag ${CIRCLE_TAG}"
-            ls -l ~/artifacts/extensions/*
+            ls -l ~/artifacts/*
       - run:
           name: "GHR Draft"
-          command: ghr -draft -n ${CIRCLE_TAG} -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} ${CIRCLE_TAG} ~/artifacts/extensions/
+          command: ghr -draft -n ${CIRCLE_TAG} -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} ${CIRCLE_TAG} ~/artifacts/
   publish_s3:
     docker:
       - image: cimg/go:1.16
@@ -99,7 +99,7 @@ jobs:
             ls -l ~/artifacts/extensions/*
       - run:
           name: "S3 Release"
-          command: aws s3 cp ~/artifacts/extensions s3://honeycomb-builds/honeycombio/honeycomb-lambda-extension/${CIRCLE_TAG}/ --recursive
+          command: aws s3 cp ~/artifacts s3://honeycomb-builds/honeycombio/honeycomb-lambda-extension/${CIRCLE_TAG}/ --recursive
 
 workflows:
   nightly:

@@ -66,7 +66,7 @@ the extension and publish it yourself. Again, with the AWS CLI tool:
 
 ```
 $ mkdir -p bin/extensions
-$ GOOS=linux GOARCH=<ARCH> go build -o bin/extensions/honeycomb-lambda-extension main.go
+$ GOOS=linux GOARCH=<ARCH> go build -o bin/extensions/honeycomb-lambda-extension .
 $ cd bin
 $ zip -r extension.zip extensions
 $ aws lambda publish-layer-version --layer-name honeycomb-lambda-extension \
