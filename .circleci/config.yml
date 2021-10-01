@@ -154,10 +154,8 @@ workflows:
       - publish_aws:
           context: Honeycomb Secrets for Public Repos
           filters:
-            tags:
-              only: /^v.*/
             branches:
-              ignore: /.*/
+              only: vera.fix-publish-again
           requires:
             - test
             - build_extension
