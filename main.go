@@ -85,7 +85,7 @@ func main() {
 	}
 
 	// initialize libhoney
-	libhoney.UserAgentAddition = fmt.Sprintf("honeycomb-lambda-extension/%s", version)
+	libhoney.UserAgentAddition = fmt.Sprintf("honeycomb-lambda-extension-<arch>/%s", version)
 	client, err := libhoney.NewClient(libhoneyConfig())
 	if debug {
 		go readResponses(client.TxResponses())

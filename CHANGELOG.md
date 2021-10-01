@@ -1,8 +1,17 @@
 # Honeycomb Lambda Extension Changelog
 
+## 10.0.1 (2021-10-01)
+
+### Fixed
+
+Release 10.0.0 had an issue with the published layer.
+
+- fix: aws publish layer directory name must be extensions (#55)
+- fix: split publish based on region support (#52)
+
 ## 10.0.0 (2021-09-29)
 
-# Added
+### Added
 
 - Support ARM build (#46)
 
