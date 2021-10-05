@@ -27,6 +27,8 @@ cd ~/artifacts
 mkdir -p amd64/extensions
 cp honeycomb-lambda-extension-amd64 amd64/extensions/
 cd amd64
+# the zipfile MUST contain a directory named "extensions"
+# and that directory MUST contain the extension's executable
 zip -r extension.zip extensions
 
 for region in ${REGIONS_WITH_ARCH[@]}; do
@@ -55,6 +57,8 @@ cd ~/artifacts
 mkdir -p arm64/extensions
 cp honeycomb-lambda-extension-arm64 arm64/extensions/
 cd arm64
+# the zipfile MUST contain a directory named "extensions"
+# and that directory MUST contain the extension's executable
 zip -r extension.zip extensions
 
 for region in ${REGIONS_WITH_ARCH[@]}; do
