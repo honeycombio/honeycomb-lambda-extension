@@ -1,5 +1,16 @@
 # Honeycomb Lambda Extension Changelog
 
+## 10.0.2 (2021-11-03)
+
+### Maintenance
+
+- bump libhoney-go (#63)
+- empower apply-labels action to apply labels (#62)
+- Bump github.com/honeycombio/libhoney-go from 1.15.4 to 1.15.5 (#53)
+- leave note for future adventurers (#59)
+- ci: fix s3 sync job (#57)
+- docs: update to latest version in readme (#58)
+
 ## 10.0.1 (2021-10-01)
 
 ### Fixed
