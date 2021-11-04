@@ -8,14 +8,15 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"syscall"
 
-	libhoney "github.com/honeycombio/libhoney-go"
 	logrus "github.com/sirupsen/logrus"
 
 	"github.com/honeycombio/honeycomb-lambda-extension/extension"
 	"github.com/honeycombio/honeycomb-lambda-extension/logsapi"
+	libhoney "github.com/honeycombio/libhoney-go"
 	"github.com/honeycombio/libhoney-go/transmission"
 )
 
@@ -40,7 +41,7 @@ var (
 	apiKey  = os.Getenv("LIBHONEY_API_KEY")
 	dataset = os.Getenv("LIBHONEY_DATASET")
 	apiHost = os.Getenv("LIBHONEY_API_HOST")
-	debug = envOrElseBool("HONEYCOMB_DEBUG", false)
+	debug   = envOrElseBool("HONEYCOMB_DEBUG", false)
 
 	// when run in local mode, we don't attempt to register the extension or subscribe
 	// to log events - useful for testing
@@ -85,7 +86,7 @@ func main() {
 	}
 
 	// initialize libhoney
-	libhoney.UserAgentAddition = fmt.Sprintf("honeycomb-lambda-extension-<arch>/%s", version)
+	libhoney.UserAgentAddition = fmt.Sprintf("honeycomb-lambda-extension-%s/%s", runtime.GOARCH, version)
 	client, err := libhoney.NewClient(libhoneyConfig())
 	if debug {
 		go readResponses(client.TxResponses())
