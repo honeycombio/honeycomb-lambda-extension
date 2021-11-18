@@ -1,5 +1,11 @@
 # Honeycomb Lambda Extension Changelog
 
+## 10.0.3 (2021-11-18)
+
+### Maintenance
+
+- Put GOARCH into user agent (#65) | [@dstrelau](https://github.com/dstrelau)
+
 ## 10.0.2 (2021-11-03)
 
 ### Maintenance
