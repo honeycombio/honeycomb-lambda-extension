@@ -6,6 +6,6 @@
 
 3. Update release notes on the new draft GitHub release, and publish that.
 
-4. Update public docs with the new layer version.
+4. Update public docs and repo README with the new layer version.
 
 Voila!
