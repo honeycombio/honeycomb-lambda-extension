@@ -86,7 +86,6 @@ func main() {
 	}
 
 	// initialize libhoney
-	libhoney.UserAgentAddition = fmt.Sprintf("honeycomb-lambda-extension-%s/%s", runtime.GOARCH, version)
 	client, err := libhoney.NewClient(libhoneyConfig())
 	if debug {
 		go readResponses(client.TxResponses())
@@ -164,6 +163,14 @@ func libhoneyConfig() libhoney.ClientConfig {
 		APIKey:  apiKey,
 		Dataset: dataset,
 		APIHost: apiHost,
+		Transmission: &transmission.Honeycomb{
+			MaxBatchSize:          libhoney.DefaultMaxBatchSize,
+			BatchTimeout:          libhoney.DefaultBatchTimeout,
+			MaxConcurrentBatches:  libhoney.DefaultMaxConcurrentBatches,
+			PendingWorkCapacity:   libhoney.DefaultPendingWorkCapacity,
+			UserAgentAddition:     fmt.Sprintf("honeycomb-lambda-extension-%s/%s", runtime.GOARCH, version),
+			EnableMsgpackEncoding: true,
+		},
 	}
 }
 
