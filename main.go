@@ -86,7 +86,6 @@ func main() {
 	}
 
 	// initialize libhoney
-	libhoney.UserAgentAddition = fmt.Sprintf("honeycomb-lambda-extension-%s/%s", runtime.GOARCH, version)
 	client, err := libhoney.NewClient(libhoneyConfig())
 	if debug {
 		go readResponses(client.TxResponses())
@@ -159,11 +158,20 @@ func libhoneyConfig() libhoney.ClientConfig {
 		log.Warnln("LIBHONEY_API_KEY or LIBHONEY_DATASET not set, disabling libhoney")
 		return libhoney.ClientConfig{}
 	}
+	userAgent := fmt.Sprintf("honeycomb-lambda-extension-%s/%s", runtime.GOARCH, version)
 
 	return libhoney.ClientConfig{
 		APIKey:  apiKey,
 		Dataset: dataset,
 		APIHost: apiHost,
+		Transmission: &transmission.Honeycomb{
+			MaxBatchSize:          libhoney.DefaultMaxBatchSize,
+			BatchTimeout:          libhoney.DefaultBatchTimeout,
+			MaxConcurrentBatches:  libhoney.DefaultMaxConcurrentBatches,
+			PendingWorkCapacity:   libhoney.DefaultPendingWorkCapacity,
+			UserAgentAddition:     userAgent,
+			EnableMsgpackEncoding: true,
+		},
 	}
 }
 
