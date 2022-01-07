@@ -1,5 +1,16 @@
 # Honeycomb Lambda Extension Changelog
 
+## 10.1.0 (2022-01-07)
+
+### Added
+
+- feat: use msgpack encoding when sending telemetry (#72) | [@vreynolds](https://github.com/vreynolds)
+
+### Maintenance
+
+- ci: Add re-triage workflow (#71) | [@vreynolds](https://github.com/vreynolds)
+- docs: update layer version (#70) | [@vreynolds](https://github.com/vreynolds)
+
 ## 10.0.3 (2021-11-18)
 
 ### Maintenance
