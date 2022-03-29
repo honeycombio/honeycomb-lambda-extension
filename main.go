@@ -14,6 +14,7 @@ import (
 
 	logrus "github.com/sirupsen/logrus"
 
+	"github.com/honeycombio/honeycomb-lambda-extension/eventprocessor"
 	"github.com/honeycombio/honeycomb-lambda-extension/extension"
 	"github.com/honeycombio/honeycomb-lambda-extension/logsapi"
 	libhoney "github.com/honeycombio/libhoney-go"
@@ -86,16 +87,16 @@ func main() {
 	}
 
 	// initialize libhoney
-	client, err := libhoney.NewClient(libhoneyConfig())
+	libhoneyClient, err := libhoney.NewClient(libhoneyConfig())
 	if debug {
-		go readResponses(client.TxResponses())
+		go readResponses(libhoneyClient.TxResponses())
 	}
 	if err != nil {
 		log.Warn("Could not initialize libhoney", err)
 	}
 
 	// initialize Logs API HTTP server
-	go logsapi.StartHTTPServer(logsServerPort, client)
+	go logsapi.StartHTTPServer(logsServerPort, libhoneyClient)
 
 	// create logs api client
 	logsClient := logsapi.NewClient(runtimeAPI, logsServerPort, logsapi.BufferingOptions{
@@ -127,29 +128,7 @@ func main() {
 	}
 	log.Debug("Response from subscribe: ", subRes)
 
-	// poll the extension API for the next (invoke or shutdown) event
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		default:
-			res, err := extensionClient.NextEvent(ctx)
-			if err != nil {
-				log.Warn("Error from NextEvent: ", err)
-				continue
-			}
-			// Flush events queue after waking up
-			client.Flush()
-			if res.EventType == extension.Shutdown {
-				log.Debug("Received SHUTDOWN event. Exiting.")
-				cancel()
-			} else if res.EventType == extension.Invoke {
-				log.Debug("Received INVOKE event.")
-			} else {
-				log.Debug("Received unknown event: ", res)
-			}
-		}
-	}
+	eventprocessor.New(extensionClient, libhoneyClient).Run(ctx, cancel)
 }
 
 // configure libhoney

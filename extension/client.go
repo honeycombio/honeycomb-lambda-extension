@@ -17,12 +17,20 @@ import (
 // EventType represents the type of events received from /event/next
 type EventType string
 
+// ShutdownReason represents the reason for a shutdown event
+type ShutdownReason string
+
 const (
 	// Invoke is the lambda invoke event
 	Invoke EventType = "INVOKE"
 	// Shutdown is a shutdown event for the environment
 	Shutdown EventType = "SHUTDOWN"
-
+	// ShutdownReasonSpindown is a normal end to a function
+	ShutdownReasonSpindown ShutdownReason = "spindown"
+	// ShutdownReasonTimeout means the handler ran out of time
+	ShutdownReasonTimeout ShutdownReason = "timeout"
+	// ShutdownReasonFailure is any other shutdown type, such as out-of-memory
+	ShutdownReasonFailure ShutdownReason = "failure"
 	// extensionNameHeader identifies the extension when registering
 	extensionNameHeader = "Lambda-Extension-Name"
 	// extensionIdentifierHeader is a uuid that is required on subsequent requests
@@ -60,11 +68,12 @@ type Tracing struct {
 
 // NextEventResponse is the response for /event/next
 type NextEventResponse struct {
-	EventType          EventType `json:"eventType"`
-	DeadlineMS         int64     `json:"deadlineMs"`
-	RequestID          string    `json:"requestId"`
-	InvokedFunctionARN string    `json:"invokedFunctionArn"`
-	Tracing            Tracing   `json:"tracing"`
+	EventType          EventType      `json:"eventType"`
+	DeadlineMS         int64          `json:"deadlineMs"`
+	RequestID          string         `json:"requestId"`
+	InvokedFunctionARN string         `json:"invokedFunctionArn"`
+	Tracing            Tracing        `json:"tracing"`
+	ShutdownReason     ShutdownReason `json:"shutdownReason,omitempty"`
 }
 
 // NewClient returns a new Lambda Extensions API client
