@@ -1,5 +1,17 @@
 # Honeycomb Lambda Extension Changelog
 
+## 10.2.0 (2002-04-08)
+
+### Added
+
+- Add shutdown reason event for timeouts and failures (#75) | [@danvendia](https://github.com/danvendia)
+
+### Maintenance
+
+- Add go 1.18 to CI (#77) | [@vreynolds](https://github.com/vreynolds)
+- Bump github.com/stretchr/testify from 1.7.0 to 1.7.1 (#78)
+- Bump github.com/honeycombio/libhoney-go from 1.15.6 to 1.15.8 (#74)
+
 ## 10.1.0 (2022-01-07)
 
 ### Added
