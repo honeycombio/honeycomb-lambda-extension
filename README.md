@@ -20,7 +20,7 @@ To use the honeycomb-lambda-extension with a lambda function, it must be configu
 You can add the extension as a layer with the AWS CLI tool:
 
 ```
-$ aws lambda update-code-configuration --function-name MyLambdaFunction --layers "arn:aws:lambda:<AWS_REGION>:702835727665:layer:honeycomb-lambda-extension-<ARCH>:7"
+$ aws lambda update-code-configuration --function-name MyLambdaFunction --layers "arn:aws:lambda:<AWS_REGION>:702835727665:layer:honeycomb-lambda-extension-<ARCH>:9"
 ```
 
 - `<ARCH>` --> `x86_64` or `arm64` (*note*: `arm64` is only supported in [certain regions](https://aws.amazon.com/about-aws/whats-new/2021/09/better-price-performance-aws-lambda-functions-aws-graviton2-processor/))
@@ -52,9 +52,9 @@ resource "aws_lambda_function" "extensions-demo-example-lambda-python" {
                         LIBHONEY_API_HOST = "api.honeycomb.io"
                 }
         }
-        
+
         layers = [
-            "arn:aws:lambda:<AWS_REGION>:702835727665:layer:honeycomb-lambda-extension-<ARCH>:7"
+            "arn:aws:lambda:<AWS_REGION>:702835727665:layer:honeycomb-lambda-extension-<ARCH>:9"
         ]
 }
 ```
