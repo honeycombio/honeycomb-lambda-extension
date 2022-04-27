@@ -1,6 +1,6 @@
 # Honeycomb Lambda Extension Changelog
 
-## 10.2.0 (2002-04-08)
+## [v10.2.0] Layer 9 - 2022-04-08
 
 ### Added
 
@@ -12,7 +12,7 @@
 - Bump github.com/stretchr/testify from 1.7.0 to 1.7.1 (#78)
 - Bump github.com/honeycombio/libhoney-go from 1.15.6 to 1.15.8 (#74)
 
-## 10.1.0 (2022-01-07)
+## [v10.1.0] Layer 8 - 2022-01-07
 
 ### Added
 
@@ -23,13 +23,13 @@
 - ci: Add re-triage workflow (#71) | [@vreynolds](https://github.com/vreynolds)
 - docs: update layer version (#70) | [@vreynolds](https://github.com/vreynolds)
 
-## 10.0.3 (2021-11-18)
+## [v10.0.3] Layer 7 - 2021-11-18
 
 ### Maintenance
 
 - Put GOARCH into user agent (#65) | [@dstrelau](https://github.com/dstrelau)
 
-## 10.0.2 (2021-11-03)
+## [v10.0.2] Layer 6 - 2021-11-03
 
 ### Maintenance
 
@@ -40,7 +40,7 @@
 - ci: fix s3 sync job (#57)
 - docs: update to latest version in readme (#58)
 
-## 10.0.1 (2021-10-01)
+## [v10.0.1] Layer 5 - 2021-10-01
 
 ### Fixed
 
