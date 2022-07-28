@@ -1,7 +1,7 @@
 # Creating a new release
 
-1. Prep docs PR for updated layer version and release version. **NOTE**: layer version and release version are totally different :(
 1. Update `version.go` with new layer version.
+1. Prep docs PR for updated layer version and release version. **NOTE**: layer version and release version are totally different :(
 1. Update `README.md` with new layer version.
 1. Add new entry in `CHANGELOG.md`, include both release version and layer version.
 1. Open a PR for release prep.
