@@ -2,8 +2,13 @@
 
 ## [v10.3.0] Layer version 10 - 2022-07-25
 
-- Fixes OpenSSL CVE | [@pkanal](https://github.com/pkanal)
+### Added
+
 - Add support for more AWS regions (#88) | [@pkanal](https://github.com/pkanal)
+
+### Maintenance
+
+- Fixes OpenSSL CVE | [@pkanal](https://github.com/pkanal)
 
 ## [v10.2.0] Layer version 9 - 2022-04-08
 
