@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"strconv"
 	"syscall"
+	"time"
 
 	logrus "github.com/sirupsen/logrus"
 
@@ -19,6 +20,13 @@ import (
 	"github.com/honeycombio/honeycomb-lambda-extension/logsapi"
 	libhoney "github.com/honeycombio/libhoney-go"
 	"github.com/honeycombio/libhoney-go/transmission"
+)
+
+const (
+	// Waiting too long to send a batch of events can be
+	// expensive in Lambda. It's reasonable to expect a
+	// batch send to complete in this amount of time.
+	defaultBatchSendTimeout = time.Second * 15
 )
 
 var (
@@ -43,6 +51,8 @@ var (
 	dataset = os.Getenv("LIBHONEY_DATASET")
 	apiHost = os.Getenv("LIBHONEY_API_HOST")
 	debug   = envOrElseBool("HONEYCOMB_DEBUG", false)
+
+	batchSendTimeout = envOrElseDuration("HONEYCOMB_BATCH_SEND_TIMEOUT_S", defaultBatchSendTimeout)
 
 	// when run in local mode, we don't attempt to register the extension or subscribe
 	// to log events - useful for testing
@@ -150,6 +160,7 @@ func libhoneyConfig() libhoney.ClientConfig {
 			PendingWorkCapacity:   libhoney.DefaultPendingWorkCapacity,
 			UserAgentAddition:     userAgent,
 			EnableMsgpackEncoding: true,
+			BatchSendTimeout:      batchSendTimeout,
 		},
 	}
 }
@@ -173,6 +184,17 @@ func envOrElseBool(key string, fallback bool) bool {
 			return fallback
 		}
 		return v
+	}
+	return fallback
+}
+
+func envOrElseDuration(key string, fallback time.Duration) time.Duration {
+	if value, ok := os.LookupEnv(key); ok {
+		v, err := strconv.Atoi(value)
+		if err != nil {
+			return fallback
+		}
+		return time.Duration(v) * time.Second
 	}
 	return fallback
 }
