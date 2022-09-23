@@ -9,7 +9,7 @@ jobs:
     parameters:
       goversion:
         type: "string"
-        default: "1.18"
+        default: "1.19"
     executor:
       name: go/default
       tag: << parameters.goversion >>
@@ -31,7 +31,7 @@ jobs:
         default: "amd64"
     executor:
       name: go/default
-      tag: "1.18"
+      tag: "1.19"
     steps:
       - checkout
       - go/load-cache
@@ -54,7 +54,7 @@ jobs:
           path: ~/artifacts
   publish_aws:
     docker:
-      - image: cimg/go:1.18
+      - image: cimg/go:1.19
     steps:
       - attach_workspace:
           at: ~/
@@ -83,7 +83,7 @@ jobs:
           command: ghr -draft -n ${CIRCLE_TAG} -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} ${CIRCLE_TAG} ~/artifacts/
   publish_s3:
     docker:
-      - image: cimg/go:1.18
+      - image: cimg/go:1.19
     steps:
       - attach_workspace:
           at: ~/
@@ -115,9 +115,6 @@ workflows:
           matrix:
             parameters:
               goversion:
-                - "1.14"
-                - "1.15"
-                - "1.16"
                 - "1.17"
                 - "1.18"
                 - "1.19"
