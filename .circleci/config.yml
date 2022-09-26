@@ -4,12 +4,20 @@ orbs:
   go: circleci/go@1.7.1
   aws-cli: circleci/aws-cli@2.0.3
 
+# Default version of Go to use for Go steps
+default_goversion: &default_goversion "1.19"
+
+matrix_goversions: &matrix_goversions
+  matrix:
+    parameters:
+      goversion: ["1.17", "1.18", "1.19"]
+
 jobs:
   test:
     parameters:
       goversion:
         type: "string"
-        default: "1.19"
+        default: *default_goversion
     executor:
       name: go/default
       tag: << parameters.goversion >>
@@ -31,7 +39,7 @@ jobs:
         default: "amd64"
     executor:
       name: go/default
-      tag: "1.19"
+      tag: *default_goversion
     steps:
       - checkout
       - go/load-cache
@@ -112,12 +120,7 @@ workflows:
                 - main
     jobs:
       - test: &test
-          matrix:
-            parameters:
-              goversion:
-                - "1.17"
-                - "1.18"
-                - "1.19"
+          <<: *matrix_goversions
 
   build:
     jobs:
