@@ -52,8 +52,6 @@ var (
 	apiHost = os.Getenv("LIBHONEY_API_HOST")
 	debug   = envOrElseBool("HONEYCOMB_DEBUG", false)
 
-	batchSendTimeout = envOrElseDuration("HONEYCOMB_BATCH_SEND_TIMEOUT_S", defaultBatchSendTimeout)
-
 	// when run in local mode, we don't attempt to register the extension or subscribe
 	// to log events - useful for testing
 	localMode = false
@@ -147,21 +145,28 @@ func libhoneyConfig() libhoney.ClientConfig {
 		log.Warnln("LIBHONEY_API_KEY or LIBHONEY_DATASET not set, disabling libhoney")
 		return libhoney.ClientConfig{}
 	}
-	userAgent := fmt.Sprintf("honeycomb-lambda-extension-%s/%s", runtime.GOARCH, version)
 
 	return libhoney.ClientConfig{
-		APIKey:  apiKey,
-		Dataset: dataset,
-		APIHost: apiHost,
-		Transmission: &transmission.Honeycomb{
-			MaxBatchSize:          libhoney.DefaultMaxBatchSize,
-			BatchTimeout:          libhoney.DefaultBatchTimeout,
-			MaxConcurrentBatches:  libhoney.DefaultMaxConcurrentBatches,
-			PendingWorkCapacity:   libhoney.DefaultPendingWorkCapacity,
-			UserAgentAddition:     userAgent,
-			EnableMsgpackEncoding: true,
-			BatchSendTimeout:      batchSendTimeout,
-		},
+		APIKey:       apiKey,
+		Dataset:      dataset,
+		APIHost:      apiHost,
+		Transmission: newTransmission(),
+	}
+}
+
+func newTransmission() *transmission.Honeycomb {
+	batchSendTimeout := envOrElseDuration("HONEYCOMB_BATCH_SEND_TIMEOUT_S", defaultBatchSendTimeout)
+
+	userAgent := fmt.Sprintf("honeycomb-lambda-extension-%s/%s", runtime.GOARCH, version)
+
+	return &transmission.Honeycomb{
+		MaxBatchSize:          libhoney.DefaultMaxBatchSize,
+		BatchTimeout:          libhoney.DefaultBatchTimeout,
+		MaxConcurrentBatches:  libhoney.DefaultMaxConcurrentBatches,
+		PendingWorkCapacity:   libhoney.DefaultPendingWorkCapacity,
+		UserAgentAddition:     userAgent,
+		EnableMsgpackEncoding: true,
+		BatchSendTimeout:      batchSendTimeout,
 	}
 }
 
