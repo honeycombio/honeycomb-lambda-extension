@@ -53,7 +53,7 @@ jobs:
           command: |
             echo "Building extension"
             mkdir ~/artifacts
-            go build -o ~/artifacts/honeycomb-lambda-extension-<< parameters.arch >> .
+            go build -ldflags "-X main.version=${CIRCLE_TAG}" -o ~/artifacts/honeycomb-lambda-extension-<< parameters.arch >> .
       - persist_to_workspace:
           root: ~/
           paths:
