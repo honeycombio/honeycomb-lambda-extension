@@ -227,8 +227,8 @@ func envOrElseDuration(key string, fallback time.Duration) time.Duration {
 			log.Warnf("%s was set to %d (an integer, not a duration). Assuming 'seconds' as unit, resulting in %s.", key, v, dur_s)
 			return dur_s
 		}
+		log.Warnf("%s was set to '%s', but failed to parse to a duration. Falling back to default of %s.", key, value, fallback)
 	}
-	log.Warnf("%s was set to '%s', but failed to parse to a duration. Falling back to default of %s.", key, value, fallback)
 	return fallback
 }
 
