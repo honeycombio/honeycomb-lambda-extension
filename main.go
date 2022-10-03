@@ -179,7 +179,7 @@ func envOrElseInt(key string, fallback int) int {
 	if value, ok := os.LookupEnv(key); ok {
 		v, err := strconv.Atoi(value)
 		if err != nil {
-			log.Warnf("%s was provided, but failed to parse to an integer. Falling back to default of %d.", key, fallback)
+			log.Warnf("%s was set to '%s', but failed to parse to an integer. Falling back to default of %d.", key, value, fallback)
 			return fallback
 		}
 		return v
@@ -196,7 +196,7 @@ func envOrElseBool(key string, fallback bool) bool {
 	if value, ok := os.LookupEnv(key); ok {
 		v, err := strconv.ParseBool(value)
 		if err != nil {
-			log.Warnf("%s was provided, but failed to parse to true or false. Falling back to default of %t.", key, fallback)
+			log.Warnf("%s was set to '%s', but failed to parse to true or false. Falling back to default of %t.", key, value, fallback)
 			return fallback
 		}
 		return v
