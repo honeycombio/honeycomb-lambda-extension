@@ -155,7 +155,7 @@ func libhoneyConfig() libhoney.ClientConfig {
 }
 
 func newTransmission() *transmission.Honeycomb {
-	batchSendTimeout := envOrElseDuration("HONEYCOMB_BATCH_SEND_TIMEOUT_S", defaultBatchSendTimeout)
+	batchSendTimeout := envOrElseDurationSeconds("HONEYCOMB_BATCH_SEND_TIMEOUT_S", defaultBatchSendTimeout)
 
 	userAgent := fmt.Sprintf("honeycomb-lambda-extension-%s/%s", runtime.GOARCH, version)
 
@@ -170,11 +170,15 @@ func newTransmission() *transmission.Honeycomb {
 	}
 }
 
-// helper functions for environment variables with default fallbacks
+// (helper) Retrieve an environment variable value by the given key,
+// return an integer based on that value.
+// If key cannot be found or value fails to cast to an int,
+// return the given fallback duration.
 func envOrElseInt(key string, fallback int) int {
 	if value, ok := os.LookupEnv(key); ok {
 		v, err := strconv.Atoi(value)
 		if err != nil {
+			log.Warnf("%s was provided, but failed to parse to an integer. Falling back to default of %d.", key, fallback)
 			return fallback
 		}
 		return v
@@ -182,10 +186,15 @@ func envOrElseInt(key string, fallback int) int {
 	return fallback
 }
 
+// (helper) Retrieve an environment variable value by the given key,
+// return a boolean based on that value.
+// If key cannot be found or value fails to cast to a bool,
+// return the given fallback duration.
 func envOrElseBool(key string, fallback bool) bool {
 	if value, ok := os.LookupEnv(key); ok {
 		v, err := strconv.ParseBool(value)
 		if err != nil {
+			log.Warnf("%s was provided, but failed to parse to true or false. Falling back to default of %t.", key, fallback)
 			return fallback
 		}
 		return v
@@ -193,10 +202,15 @@ func envOrElseBool(key string, fallback bool) bool {
 	return fallback
 }
 
-func envOrElseDuration(key string, fallback time.Duration) time.Duration {
+// (helper) Retrieve an environment variable value by the given key,
+// return a duration in seconds based on that value.
+// If key cannot be found or value fails to cast to an int,
+// return the given fallback duration.
+func envOrElseDurationSeconds(key string, fallback time.Duration) time.Duration {
 	if value, ok := os.LookupEnv(key); ok {
 		v, err := strconv.Atoi(value)
 		if err != nil {
+			log.Warnf("%s was provided, but failed to parse to an integer for duration in seconds. Falling back to default of %s.", key, fallback)
 			return fallback
 		}
 		return time.Duration(v) * time.Second
