@@ -4,12 +4,20 @@ orbs:
   go: circleci/go@1.7.1
   aws-cli: circleci/aws-cli@2.0.3
 
+# Default version of Go to use for Go steps
+default_goversion: &default_goversion "1.19"
+
+matrix_goversions: &matrix_goversions
+  matrix:
+    parameters:
+      goversion: ["1.17", "1.18", "1.19"]
+
 jobs:
   test:
     parameters:
       goversion:
         type: "string"
-        default: "1.18"
+        default: *default_goversion
     executor:
       name: go/default
       tag: << parameters.goversion >>
@@ -31,7 +39,7 @@ jobs:
         default: "amd64"
     executor:
       name: go/default
-      tag: "1.18"
+      tag: *default_goversion
     steps:
       - checkout
       - go/load-cache
@@ -54,7 +62,7 @@ jobs:
           path: ~/artifacts
   publish_aws:
     docker:
-      - image: cimg/go:1.18
+      - image: cimg/go:1.19
     steps:
       - attach_workspace:
           at: ~/
@@ -83,7 +91,7 @@ jobs:
           command: ghr -draft -n ${CIRCLE_TAG} -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} ${CIRCLE_TAG} ~/artifacts/
   publish_s3:
     docker:
-      - image: cimg/go:1.18
+      - image: cimg/go:1.19
     steps:
       - attach_workspace:
           at: ~/
@@ -112,15 +120,7 @@ workflows:
                 - main
     jobs:
       - test: &test
-          matrix:
-            parameters:
-              goversion:
-                - "1.14"
-                - "1.15"
-                - "1.16"
-                - "1.17"
-                - "1.18"
-                - "1.19"
+          <<: *matrix_goversions
 
   build:
     jobs:
