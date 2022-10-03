@@ -34,9 +34,9 @@ The extension will attempt to read the following environment variables from your
 - `LOGS_API_DISABLE_PLATFORM_MSGS` - Optional. Set to "true" in order to disable "platform" messages from the logs API.
 - `HONEYCOMB_DEBUG` - Optional. Set to "true" to enable debug statements and troubleshoot issues.
 - `HONEYCOMB_BATCH_SEND_TIMEOUT_S` - Optional. The timeout in seconds for an event batch send to Honeycomb to complete the full HTTP request/response cycle.
-Default: 15 (seconds).
-Note: a batch send that times out has a single built-in retry; total time a lambda invocation may spend waiting is double this value.
-A very low duration may result in duplicate events, if Honeycomb data ingest is successful but slower than this timeout (rare, but possible).
+  Default: 15 (seconds).
+  Note: a batch send that times out has a single built-in retry; total time a lambda invocation may spend waiting is double this value.
+  A very low duration may result in duplicate events, if Honeycomb data ingest is successful but slower than this timeout (rare, but possible).
 
 If you're using an infrastructure as code tool such as [Terraform](https://www.terraform.io/) to manage your lambda functions, you can add this extension as a layer:
 
