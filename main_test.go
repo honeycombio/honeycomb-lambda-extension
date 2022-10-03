@@ -19,9 +19,14 @@ func Test_Configuration_BatchSendTimeout(t *testing.T) {
 			expectedTimeout: defaultBatchSendTimeout,
 		},
 		{
-			desc:            "set by user: duration",
-			timeoutEnvVar:   "900s",
-			expectedTimeout: 900 * time.Second,
+			desc:            "set by user: duration seconds",
+			timeoutEnvVar:   "9s",
+			expectedTimeout: 9 * time.Second,
+		},
+		{
+			desc:            "set by user: duration milliseconds",
+			timeoutEnvVar:   "900ms",
+			expectedTimeout: 900 * time.Millisecond,
 		},
 		{
 			desc:            "set by user: integer",
