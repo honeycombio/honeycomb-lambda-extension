@@ -13,8 +13,8 @@ REGIONS_NO_ARCH=(eu-north-1 us-west-1 eu-west-3 ap-northeast-2 sa-east-1 ca-cent
 REGIONS_WITH_ARCH=(ap-south-1 eu-west-2 us-east-1 eu-west-1 ap-northeast-1 ap-southeast-1
                    ap-southeast-2 eu-central-1 us-east-2 us-west-2)
 
-if [ ! -f ~/artifacts/honeycomb-lambda-extension-amd64 ]; then
-    echo "amd64 extension does not exist, cannot publish."
+if [ ! -f ~/artifacts/honeycomb-lambda-extension-x86_64 ]; then
+    echo "x86_64 extension does not exist, cannot publish."
     exit 1;
 fi
 
@@ -25,9 +25,9 @@ fi
 
 cd ~/artifacts
 
-mkdir -p amd64/extensions
-cp honeycomb-lambda-extension-amd64 amd64/extensions/
-cd amd64
+mkdir -p x86_64/extensions
+cp honeycomb-lambda-extension-x86_64 x86_64/extensions/
+cd x86_64
 # the zipfile MUST contain a directory named "extensions"
 # and that directory MUST contain the extension's executable
 zip -r extension.zip extensions

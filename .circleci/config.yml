@@ -21,12 +21,6 @@ jobs:
           path: ./unit-tests.xml
       - go/save-cache
   build_extension:
-    parameters:
-      arch:
-        description: Target architecture
-        type: enum
-        enum: ["amd64", "arm64"]
-        default: "amd64"
     executor:
       name: go/default
       tag: *goversion
@@ -36,14 +30,15 @@ jobs:
       - go/mod-download
       - go/save-cache
       - run:
-          name: "Build Binary"
+          name: "Build Binaries"
           environment:
             GOOS: linux
-            GOARCH: << parameters.arch >>
+          command: make build
+      - run:
+          name: "Copy binaries to persist for CI workspace"
           command: |
-            echo "Building extension"
-            mkdir ~/artifacts
-            go build -ldflags "-X main.version=${CIRCLE_TAG}" -o ~/artifacts/honeycomb-lambda-extension-<< parameters.arch >> .
+            mkdir -p ~/artifacts
+            cp -R ./artifacts/* ~/artifacts/
       - persist_to_workspace:
           root: ~/
           paths:
@@ -126,11 +121,6 @@ workflows:
               ignore:
                 - /pull\/.*/
                 - /dependabot\/.*/
-          matrix:
-            parameters:
-              arch:
-                - "amd64"
-                - "arm64"
       - publish_s3:
           context: Honeycomb Secrets for Public Repos
           filters:
