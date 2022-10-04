@@ -16,11 +16,10 @@ jobs:
       - checkout
       - go/load-cache
       - go/mod-download
+      - run: make test
+      - store_test_results:
+          path: ./unit-tests.xml
       - go/save-cache
-      - go/test:
-          covermode: atomic
-          failfast: true
-          race: true
   build_extension:
     parameters:
       arch:
