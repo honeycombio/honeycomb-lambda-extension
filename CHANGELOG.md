@@ -1,5 +1,18 @@
 # Honeycomb Lambda Extension Changelog
 
+## [v10.3.0] Layer version 11 - 2022-10-07
+
+### Added
+
+- feat: configurable event batch send timeout (#98) | [@robbkidd](https://github.com/robbkidd)
+- add missing default regions (#93) | [@JamieDanielson](https://github.com/JamieDanielson)
+
+### Maintenance
+
+- Bump github.com/sirupsen/logrus from 1.8.1 to 1.9.0 (#90)
+- Bump github.com/honeycombio/libhoney-go from 1.15.8 to 1.17.0 (#99)
+- maint: add go 1.19 to CI (#96) | [@vreynolds](https://github.com/vreynolds)
+
 ## [v10.3.0] Layer version 10 - 2022-07-25
 
 ### Added
