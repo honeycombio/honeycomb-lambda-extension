@@ -25,6 +25,10 @@ else
 	gotestsum --junitfile unit-tests.xml --format testname -- -race ./...
 endif
 
+.PHONY: version
+version:
+	@echo $(CIRCLE_TAG)
+
 # target directory for artifact builds
 ARTIFACT_DIR := artifacts
 $(ARTIFACT_DIR):

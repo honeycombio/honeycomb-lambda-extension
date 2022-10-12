@@ -10,7 +10,12 @@ for arch in x86_64 arm64; do
     fi
 done
 
-if [[ "${CIRCLE_TAG}" == *dev ]]; then
+VERSION="${CIRCLE_TAG:-$(make version)}"
+# lambda layer names must match a regex: [a-zA-Z0-9-_]+)|[a-zA-Z0-9-_]+
+# turn periods into dashes and cry into your coffee
+VERSION=$(echo ${VERSION} | tr '.' '-')
+
+if [[ "${VERSION}" == *dev ]]; then
     EXTENSION_NAME="honeycomb-lambda-extension-dev"
 else
     EXTENSION_NAME="honeycomb-lambda-extension"
@@ -23,13 +28,13 @@ REGIONS_WITH_ARCH=(ap-south-1 eu-west-2 us-east-1 eu-west-1 ap-northeast-1 ap-so
 
 ### x86_64 ###
 
-layer_name_x86_64="$EXTENSION_NAME-x86_64"
+layer_name_x86_64="${EXTENSION_NAME}-x86_64-${VERSION}"
 
 for region in ${REGIONS_WITH_ARCH[@]}; do
     RESPONSE=`aws lambda publish-layer-version \
         --layer-name $layer_name_x86_64 \
         --compatible-architectures x86_64 \
-        --region $region --zip-file "fileb://"${artifact_dir}/extension-x86_64.zip""`
+        --region $region --zip-file "fileb://${artifact_dir}/extension-x86_64.zip"`
     layer_version=`echo $RESPONSE | jq -r '.Version'`
     aws --region $region lambda add-layer-version-permission --layer-name $layer_name_x86_64 \
         --version-number $layer_version --statement-id "$EXTENSION_NAME-x86_64-$layer_version-$region" \
@@ -48,7 +53,7 @@ done
 
 ### arm64 ###
 
-layer_name_arm64="$EXTENSION_NAME-arm64"
+layer_name_arm64="${EXTENSION_NAME}-arm64-${VERSION}"
 
 for region in ${REGIONS_WITH_ARCH[@]}; do
     RESPONSE=`aws lambda publish-layer-version \
