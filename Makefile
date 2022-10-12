@@ -82,11 +82,42 @@ zips: $(ARTIFACT_DIR)/linux/extension-arm64.zip $(ARTIFACT_DIR)/linux/extension-
 else
 zips:
 	@echo "\n*** GOOS is set to ${GOOS}. Zips destined for publishing as a layer can only be for linux."
+	exit 1
 endif
 
-publish: build
-	cd bin && zip -r extension.zip extensions && aws lambda publish-layer-version --layer-name honeycomb-lambda-extension --region us-east-1 --zip-file "fileb://extension.zip"
+.PHONY: publish-sandbox
+#: for serious, don't use this as-is for real publishing
+publish_sandbox: are_you_sure arch_required region_required zips
+	@echo "\n*** Publishing honeycomb-lambda-extension-${AWS_ARCH} to ${AWS_REGION}"
+	aws lambda publish-layer-version \
+		--layer-name honeycomb-lambda-extension-${AWS_ARCH} \
+		--region ${AWS_REGION} \
+		--compatible-architectures ${AWS_ARCH} \
+		--zip-file "fileb://${ARTIFACT_DIR}/linux/extension-${AWS_ARCH}.zip" \
+		--no-cli-pager
 
 #: clean up the workspace
 clean:
 	rm -rf artifacts
+
+### Utilities
+
+.PHONY: region_required
+region_required:
+	@:$(call check_defined, AWS_REGION, the region to publish to)
+
+.PHONY: arch_required
+arch_required:
+	@:$(call check_defined, AWS_ARCH, the architecture to publish)
+
+.PHONY: are_you_sure
+are_you_sure:
+		@( read -p "Are you sure?!? [y/N]: " sure && case "$$sure" in [yY]) true;; *) false;; esac )
+
+check_defined = \
+    $(strip $(foreach 1,$1, \
+        $(call __check_defined,$1,$(strip $(value 2)))))
+__check_defined = \
+    $(if $(value $1),, \
+        $(error Undefined $1$(if $2, ($2))$(if $(value @), \
+                required by target `$@')))
