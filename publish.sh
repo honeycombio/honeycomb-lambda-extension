@@ -26,29 +26,46 @@ REGIONS_NO_ARCH=(eu-north-1 us-west-1 eu-west-3 ap-northeast-2 sa-east-1 ca-cent
 REGIONS_WITH_ARCH=(ap-south-1 eu-west-2 us-east-1 eu-west-1 ap-northeast-1 ap-southeast-1
                    ap-southeast-2 eu-central-1 us-east-2 us-west-2)
 
+results_dir="publishing"
+mkdir -p ${results_dir}
+
 ### x86_64 ###
 
 layer_name_x86_64="${EXTENSION_NAME}-x86_64-${VERSION}"
 
 for region in ${REGIONS_WITH_ARCH[@]}; do
-    RESPONSE=`aws lambda publish-layer-version \
+    id="x86_64-${region}"
+    publish_results_json="${results_dir}/publish-${id}.json"
+    permit_results_json="${results_dir}/permit-${id}.json"
+    aws lambda publish-layer-version \
         --layer-name $layer_name_x86_64 \
         --compatible-architectures x86_64 \
-        --region $region --zip-file "fileb://${artifact_dir}/extension-x86_64.zip"`
-    layer_version=`echo $RESPONSE | jq -r '.Version'`
+        --region $region \
+        --zip-file "fileb://${artifact_dir}/extension-x86_64.zip" \
+        --no-cli-pager \
+        > "${publish_results_json}"
+    layer_version=`jq -r '.Version' ${publish_results_json}`
     aws --region $region lambda add-layer-version-permission --layer-name $layer_name_x86_64 \
         --version-number $layer_version --statement-id "$EXTENSION_NAME-x86_64-$layer_version-$region" \
-        --principal "*" --action lambda:GetLayerVersion
+        --principal "*" --action lambda:GetLayerVersion --no-cli-pager \
+        > "${permit_results_json}"
 done
 
 for region in ${REGIONS_NO_ARCH[@]}; do
-    RESPONSE=`aws lambda publish-layer-version \
+    id="x86_64-${region}"
+    publish_results_json="${results_dir}/publish-${id}.json"
+    permit_results_json="${results_dir}/permit-${id}.json"
+    aws lambda publish-layer-version \
         --layer-name $layer_name_x86_64 \
-        --region $region --zip-file "fileb://${artifact_dir}/extension-x86_64.zip"`
-    layer_version=`echo $RESPONSE | jq -r '.Version'`
+        --region $region \
+        --zip-file "fileb://${artifact_dir}/extension-x86_64.zip" \
+        --no-cli-pager \
+        > "${publish_results_json}"
+    layer_version=`jq -r '.Version' ${publish_results_json}`
     aws --region $region lambda add-layer-version-permission --layer-name $layer_name_x86_64 \
         --version-number $layer_version --statement-id "$EXTENSION_NAME-x86_64-$layer_version-$region" \
-        --principal "*" --action lambda:GetLayerVersion
+        --principal "*" --action lambda:GetLayerVersion --no-cli-pager \
+        > "${permit_results_json}"
 done
 
 ### arm64 ###
@@ -56,12 +73,19 @@ done
 layer_name_arm64="${EXTENSION_NAME}-arm64-${VERSION}"
 
 for region in ${REGIONS_WITH_ARCH[@]}; do
-    RESPONSE=`aws lambda publish-layer-version \
+    id="arm64-${region}"
+    publish_results_json="${results_dir}/publish-${id}.json"
+    permit_results_json="${results_dir}/permit-${id}.json"
+    aws lambda publish-layer-version \
         --layer-name $layer_name_arm64 \
         --compatible-architectures arm64 \
-        --region $region --zip-file "fileb://${artifact_dir}/extension-arm64.zip"`
-    layer_version=`echo $RESPONSE | jq -r '.Version'`
+        --region $region \
+        --zip-file "fileb://${artifact_dir}/extension-arm64.zip" \
+        --no-cli-pager \
+        > "${publish_results_json}"
+    layer_version=`jq -r '.Version' ${publish_results_json}`
     aws --region $region lambda add-layer-version-permission --layer-name $layer_name_arm64 \
         --version-number $layer_version --statement-id "$EXTENSION_NAME-arm64-$layer_version-$region" \
-        --principal "*" --action lambda:GetLayerVersion
+        --principal "*" --action lambda:GetLayerVersion --no-cli-pager \
+        > "${permit_results_json}"
 done
