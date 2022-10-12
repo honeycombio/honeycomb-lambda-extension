@@ -112,12 +112,12 @@ arch_required:
 
 .PHONY: are_you_sure
 are_you_sure:
-		@( read -p "Are you sure?!? [y/N]: " sure && case "$$sure" in [yY]) true;; *) false;; esac )
+	@( read -p "Are you sure?!? [y/N]: " sure && case "$$sure" in [yY]) true;; *) false;; esac )
 
 check_defined = \
-    $(strip $(foreach 1,$1, \
-        $(call __check_defined,$1,$(strip $(value 2)))))
+	$(strip $(foreach 1,$1, \
+		$(call __check_defined,$1,$(strip $(value 2)))))
 __check_defined = \
-    $(if $(value $1),, \
-        $(error Undefined $1$(if $2, ($2))$(if $(value @), \
-                required by target `$@')))
+	$(if $(value $1),, \
+		$(error Undefined $1$(if $2, ($2))$(if $(value @), \
+			required by target `$@')))
