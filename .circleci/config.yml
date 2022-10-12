@@ -30,12 +30,12 @@ jobs:
       - go/mod-download
       - go/save-cache
       - run:
-          name: "Build Binaries"
+          name: "Build binaries and layer content ZIPs"
           environment:
             GOOS: linux
-          command: make build
+          command: make zips
       - run:
-          name: "Copy binaries to persist for CI workspace"
+          name: "Copy binaries and ZIPs to persist for CI workspace"
           command: |
             mkdir -p ~/artifacts
             cp -R ./artifacts/* ~/artifacts/

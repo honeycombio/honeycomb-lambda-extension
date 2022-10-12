@@ -13,8 +13,6 @@ GOOS ?= linux
 # --match :: a regex to select a tag that matches our version number tag scheme
 CIRCLE_TAG ?= $(shell git describe --always --tags --match "v[0-9]*" HEAD)
 
-layer_name_root = honeycomb-lambda-extension
-
 .PHONY: test
 test:
 ifeq (, $(shell which gotestsum))
@@ -26,14 +24,64 @@ else
 	gotestsum --junitfile unit-tests.xml --format testname -- -race ./...
 endif
 
-build:
-	@echo "\n*** Building ${layer_name_root} binaries for ${GOOS}"
-	mkdir -p artifacts
-	GOARCH=amd64 go build -ldflags "-X main.version=${CIRCLE_TAG}" -o artifacts/${layer_name_root}-x86_64 .
-	GOARCH=arm64 go build -ldflags "-X main.version=${CIRCLE_TAG}" -o artifacts/${layer_name_root}-arm64 .
+# target directory for artifact builds
+ARTIFACT_DIR := artifacts
+$(ARTIFACT_DIR):
+	mkdir -p $@
+
+BUILD_DIR := $(ARTIFACT_DIR)/$(GOOS)
+$(BUILD_DIR):
+	mkdir -p $@
+
+# List of the Go source files; the build target will then know if these are newer than an executable present.
+GO_SOURCES := go.mod go.sum $(wildcard *.go) $(wildcard */*.go)
+ldflags := "-X main.version=$(CIRCLE_TAG)"
+
+$(BUILD_DIR)/honeycomb-lambda-extension-arm64: $(GO_SOURCES) | $(BUILD_DIR)
+	@echo "\n*** Building honeycomb-lambda-extension for ${GOOS}/arm64"
+	GOOS=${GOOS} GOARCH=arm64 go build -ldflags ${ldflags} -o $@ .
+
+$(BUILD_DIR)/honeycomb-lambda-extension-x86_64: $(GO_SOURCES) | $(BUILD_DIR)
+	@echo "\n*** Building honeycomb-lambda-extension for ${GOOS}/x86_64"
+	GOOS=${GOOS} GOARCH=amd64 go build -ldflags ${ldflags} -o $@ .
+
+.PHONY: build
+#: build the executables
+build: $(BUILD_DIR)/honeycomb-lambda-extension-arm64 $(BUILD_DIR)/honeycomb-lambda-extension-x86_64
+
+### ZIPs for layer publishing
+#
+# Linux is the only supported OS.
+#
+# some of the Make automatica variables in use in these recipes:
+#   $(@D) - the directory portion of the target, e.g. foo/bar/baz/buzz.zip, $(@D) == foo/bar/baz
+#   $(@F) - the file portion of the target, e.g. foo/bar/baz/buzz.zip, $(@F) == buzz.zip
+#   $<    - the first prerequisite, in this case the executable being put into the zip file
+$(ARTIFACT_DIR)/linux/extension-arm64.zip: $(ARTIFACT_DIR)/linux/honeycomb-lambda-extension-arm64
+	@echo "\n*** Packaging honeycomb-lambda-extension for linux into layer contents zipfile"
+	rm -rf $(@D)/extensions
+	mkdir -p $(@D)/extensions
+	cp $< $(@D)/extensions
+	cd $(@D) && zip --move --recurse-paths $(@F) extensions
+
+$(ARTIFACT_DIR)/linux/extension-x86_64.zip: $(ARTIFACT_DIR)/linux/honeycomb-lambda-extension-x86_64
+	@echo "\n*** Packaging honeycomb-lambda-extension for linux into layer contents zipfile"
+	rm -rf $(@D)/extensions
+	mkdir -p $(@D)/extensions
+	cp $< $(@D)/extensions
+	cd $(@D) && zip --move --recurse-paths $(@F) extensions
+
+#: build the zipfiles destined to be published as layer contents (GOOS=linux only)
+ifeq ($(GOOS),linux)
+zips: $(ARTIFACT_DIR)/linux/extension-arm64.zip $(ARTIFACT_DIR)/linux/extension-x86_64.zip
+else
+zips:
+	@echo "\n*** GOOS is set to ${GOOS}. Zips destined for publishing as a layer can only be for linux."
+endif
 
 publish: build
 	cd bin && zip -r extension.zip extensions && aws lambda publish-layer-version --layer-name honeycomb-lambda-extension --region us-east-1 --zip-file "fileb://extension.zip"
 
+#: clean up the workspace
 clean:
 	rm -rf artifacts

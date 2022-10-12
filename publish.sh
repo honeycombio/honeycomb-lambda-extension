@@ -2,6 +2,14 @@
 
 set -x
 
+artifact_dir=~/artifacts/linux
+for arch in x86_64 arm64; do
+    if [ ! -f "${artifact_dir}/extension-${arch}.zip" ]; then
+        echo "${arch} extension does not exist, cannot publish."
+        exit 1;
+    fi
+done
+
 if [[ "${CIRCLE_TAG}" == *dev ]]; then
     EXTENSION_NAME="honeycomb-lambda-extension-dev"
 else
@@ -13,62 +21,42 @@ REGIONS_NO_ARCH=(eu-north-1 us-west-1 eu-west-3 ap-northeast-2 sa-east-1 ca-cent
 REGIONS_WITH_ARCH=(ap-south-1 eu-west-2 us-east-1 eu-west-1 ap-northeast-1 ap-southeast-1
                    ap-southeast-2 eu-central-1 us-east-2 us-west-2)
 
-if [ ! -f ~/artifacts/honeycomb-lambda-extension-x86_64 ]; then
-    echo "x86_64 extension does not exist, cannot publish."
-    exit 1;
-fi
+### x86_64 ###
 
-if [ ! -f ~/artifacts/honeycomb-lambda-extension-arm64 ]; then
-    echo "arm64 extension does not exist, cannot publish."
-    exit 1;
-fi
-
-cd ~/artifacts
-
-mkdir -p x86_64/extensions
-cp honeycomb-lambda-extension-x86_64 x86_64/extensions/
-cd x86_64
-# the zipfile MUST contain a directory named "extensions"
-# and that directory MUST contain the extension's executable
-zip -r extension.zip extensions
+layer_name_x86_64="$EXTENSION_NAME-x86_64"
 
 for region in ${REGIONS_WITH_ARCH[@]}; do
     RESPONSE=`aws lambda publish-layer-version \
-        --layer-name "$EXTENSION_NAME-x86_64" \
+        --layer-name $layer_name_x86_64 \
         --compatible-architectures x86_64 \
-        --region $region --zip-file "fileb://extension.zip"`
-    VERSION=`echo $RESPONSE | jq -r '.Version'`
-    aws --region $region lambda add-layer-version-permission --layer-name "$EXTENSION_NAME-x86_64" \
-        --version-number $VERSION --statement-id "$EXTENSION_NAME-x86_64-$VERSION-$region" \
+        --region $region --zip-file "fileb://"${artifact_dir}/extension-x86_64.zip""`
+    layer_version=`echo $RESPONSE | jq -r '.Version'`
+    aws --region $region lambda add-layer-version-permission --layer-name $layer_name_x86_64 \
+        --version-number $layer_version --statement-id "$EXTENSION_NAME-x86_64-$layer_version-$region" \
         --principal "*" --action lambda:GetLayerVersion
 done
 
 for region in ${REGIONS_NO_ARCH[@]}; do
     RESPONSE=`aws lambda publish-layer-version \
-        --layer-name "$EXTENSION_NAME-x86_64" \
-        --region $region --zip-file "fileb://extension.zip"`
-    VERSION=`echo $RESPONSE | jq -r '.Version'`
-    aws --region $region lambda add-layer-version-permission --layer-name "$EXTENSION_NAME-x86_64" \
-        --version-number $VERSION --statement-id "$EXTENSION_NAME-x86_64-$VERSION-$region" \
+        --layer-name $layer_name_x86_64 \
+        --region $region --zip-file "fileb://${artifact_dir}/extension-x86_64.zip"`
+    layer_version=`echo $RESPONSE | jq -r '.Version'`
+    aws --region $region lambda add-layer-version-permission --layer-name $layer_name_x86_64 \
+        --version-number $layer_version --statement-id "$EXTENSION_NAME-x86_64-$layer_version-$region" \
         --principal "*" --action lambda:GetLayerVersion
 done
 
-cd ~/artifacts
+### arm64 ###
 
-mkdir -p arm64/extensions
-cp honeycomb-lambda-extension-arm64 arm64/extensions/
-cd arm64
-# the zipfile MUST contain a directory named "extensions"
-# and that directory MUST contain the extension's executable
-zip -r extension.zip extensions
+layer_name_arm64="$EXTENSION_NAME-arm64"
 
 for region in ${REGIONS_WITH_ARCH[@]}; do
     RESPONSE=`aws lambda publish-layer-version \
-        --layer-name "$EXTENSION_NAME-arm64" \
+        --layer-name $layer_name_arm64 \
         --compatible-architectures arm64 \
-        --region $region --zip-file "fileb://extension.zip"`
-    VERSION=`echo $RESPONSE | jq -r '.Version'`
-    aws --region $region lambda add-layer-version-permission --layer-name "$EXTENSION_NAME-arm64" \
-        --version-number $VERSION --statement-id "$EXTENSION_NAME-arm64-$VERSION-$region" \
+        --region $region --zip-file "fileb://${artifact_dir}/extension-arm64.zip"`
+    layer_version=`echo $RESPONSE | jq -r '.Version'`
+    aws --region $region lambda add-layer-version-permission --layer-name $layer_name_arm64 \
+        --version-number $layer_version --statement-id "$EXTENSION_NAME-arm64-$layer_version-$region" \
         --principal "*" --action lambda:GetLayerVersion
 done
