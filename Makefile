@@ -14,6 +14,7 @@ GOOS ?= linux
 CIRCLE_TAG ?= $(shell git describe --always --tags --match "v[0-9]*" HEAD)
 
 .PHONY: test
+#: run the tests!
 test:
 ifeq (, $(shell which gotestsum))
 	@echo " ***"
@@ -53,9 +54,13 @@ build: $(BUILD_DIR)/honeycomb-lambda-extension-arm64 $(BUILD_DIR)/honeycomb-lamb
 #
 # Linux is the only supported OS.
 #
-# some of the Make automatica variables in use in these recipes:
-#   $(@D) - the directory portion of the target, e.g. foo/bar/baz/buzz.zip, $(@D) == foo/bar/baz
-#   $(@F) - the file portion of the target, e.g. foo/bar/baz/buzz.zip, $(@F) == buzz.zip
+# The ZIP file for the content of a lambda layers a.k.a. extention MUST have:
+#   * an extensions/ directory
+#   * the executable that is the extension located within the extensions/ directory
+#
+# some of the Make automatic variables in use in these recipes:
+#   $(@D) - the directory portion of the target, e.g. artifacts/linux/thingie.zip $(@D) == artifacts/linux
+#   $(@F) - the file portion of the target, e.g. artifacts/linux/thingie.zip, $(@F) == thingie.zip
 #   $<    - the first prerequisite, in this case the executable being put into the zip file
 $(ARTIFACT_DIR)/linux/extension-arm64.zip: $(ARTIFACT_DIR)/linux/honeycomb-lambda-extension-arm64
 	@echo "\n*** Packaging honeycomb-lambda-extension for linux into layer contents zipfile"
