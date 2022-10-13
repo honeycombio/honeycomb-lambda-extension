@@ -13,20 +13,37 @@ shutdown events.
 
 ## Usage
 
-To use the honeycomb-lambda-extension with a lambda function, it must be configured as a layer. There are two versions of the extension available:
-- honeycomb-lambda-extension-x86_64 (for functions running on `x86_64` architecture)
-- honeycomb-lambda-extension-arm64 (for functions running on `arm64` architecture)
+To use the honeycomb-lambda-extension with a lambda function, it must be configured as a layer.
+There are two variants of the extension available: one for `x86_64` architecture and one for `arm64` architecture.
 
 You can add the extension as a layer with the AWS CLI tool:
 
 ```
-$ aws lambda update-code-configuration --function-name MyLambdaFunction --layers "arn:aws:lambda:<AWS_REGION>:702835727665:layer:honeycomb-lambda-extension-<ARCH>:11"
+$ aws lambda update-code-configuration \
+  --function-name MyAwesomeFunction
+  --layers "<layer version ARN>"
 ```
 
-- `<ARCH>` --> `x86_64` or `arm64` (*note*: `arm64` is only supported in [certain regions](https://aws.amazon.com/about-aws/whats-new/2021/09/better-price-performance-aws-lambda-functions-aws-graviton2-processor/))
-- `<AWS_REGION>` --> AWS region you want to deploy this in
+As of v11.0.0, the extension's layer version ARN follows the pattern below. ARNs for previous releases can be found in their [release notes](https://github.com/honeycombio/honeycomb-lambda-extension/releases).
 
-The extension will attempt to read the following environment variables from your lambda function configuration:
+```
+# Layer Version ARN Pattern
+arn:aws:lambda:<AWS_REGION>:702835727665:layer:honeycomb-lambda-extension-<ARCH>-<VERSION>:1
+```
+
+- `<AWS_REGION>` -
+  This must match the region of the Lambda function to which you are adding the extension.
+- `<ARCH>` - `x86_64` or `arm64`
+  (*note*: Graviton2 `arm64` is supported in most, but not all regions.
+  See [AWS Lambda Pricing](https://aws.amazon.com/lambda/pricing/) for which regions are supported.)
+- `<VERSION>` -
+  The release version of the extension you wish to use with periods replaced by hyphens.
+  For example: v11.0.0 -> v11-0-0.
+  (Dots are not allowed characters in ARNs.)
+
+### Configuration
+
+The extension is configurable via environment variables set for your lambda function.
 
 - `LIBHONEY_DATASET` - The Honeycomb dataset you would like events to be sent to.
 - `LIBHONEY_API_KEY` - Your Honeycomb API Key (also called Write Key).
@@ -41,7 +58,9 @@ The extension will attempt to read the following environment variables from your
   A batch send that times out has a single built-in retry; total time a lambda invocation may spend waiting is double this value.
   A very low duration may result in duplicate events, if Honeycomb data ingest is successful but slower than this timeout (rare, but possible).
 
-If you're using an infrastructure as code tool such as [Terraform](https://www.terraform.io/) to manage your lambda functions, you can add this extension as a layer:
+### Terraform Example
+
+If you're using an infrastructure as code tool such as [Terraform](https://www.terraform.io/) to manage your lambda functions, you can add this extension as a layer.
 
 ```
 resource "aws_lambda_function" "extensions-demo-example-lambda-python" {
@@ -61,26 +80,40 @@ resource "aws_lambda_function" "extensions-demo-example-lambda-python" {
         }
 
         layers = [
-            "arn:aws:lambda:<AWS_REGION>:702835727665:layer:honeycomb-lambda-extension-<ARCH>:11"
+            "arn:aws:lambda:<AWS_REGION>:702835727665:layer:honeycomb-lambda-extension-<ARCH>-<VERSION>:1"
         ]
 }
 ```
 
 ## Self Hosting - Building & Deploying
 
-You can also deploy this extension as a layer in your own AWS account. To do that, simply build
-the extension and publish it yourself. Again, with the AWS CLI tool:
+You can also deploy this extension as a layer in your own AWS account.
 
-```
-$ mkdir -p bin/extensions
-$ GOOS=linux GOARCH=<ARCH> go build -o bin/extensions/honeycomb-lambda-extension .
-$ cd bin
-$ zip -r extension.zip extensions
-$ aws lambda publish-layer-version --layer-name honeycomb-lambda-extension \
-    --region <AWS_REGION> --zip-file "fileb://extension.zip"
+### Option 1: Publish the Honeycomb-built extension
+
+- Download the ZIP file for your target architecture from [the GitHub release](https://github.com/honeycombio/honeycomb-lambda-extension/releases).
+- Publish the layer your AWS account.
+
+```shell
+$ aws lambda publish-layer-version \
+    --layer-name honeycomb-lambda-extension \
+    --region <AWS_REGION> \
+    --compatible-architectures <ARCH> \
+    --zip-file "fileb://<path to downloaded file>"
 ```
 
-Again, substituting `<AWS_REGION>` and `<ARCH>` as appropriate.
+### Option 2: Build and publish your own extension
+
+From a clone of this project:
+
+```shell
+$ make zips
+$ aws lambda publish-layer-version \
+    --layer-name honeycomb-lambda-extension \
+    --region <AWS_REGION> \
+    --compatible-architectures <ARCH> \
+    --zip-file "fileb://artifacts/linux/extension-<ARCH>.zip"
+```
 
 ## Contributions
 

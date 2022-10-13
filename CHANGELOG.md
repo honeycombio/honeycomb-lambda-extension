@@ -1,5 +1,26 @@
 # Honeycomb Lambda Extension Changelog
 
+## v11.0.0 - 2022-10-13
+
+### 💥 Breaking Changes 💥
+
+The extension's layer name has changed to include the project's SemVer release version.
+As a result of this name change, each release of the layer will have a new LayerArn and the LayerVersionArn will consistently end in `1`.
+
+```
+# Layer Version ARN Pattern
+arn:aws:lambda:<AWS_REGION>:702835727665:layer:honeycomb-lambda-extension-<ARCH>-<VERSION>:1
+
+# Layer Version ARN Example
+arn:aws:lambda:us-east-1:702835727665:layer:honeycomb-lambda-extension-arm64-v11-0-0:1
+```
+
+### Maintenance
+
+- maint: release process updates for friendlier ARNs (#103) | [@robbkidd](https://github.com/robbkidd)
+- maint: add new project workflow (#105) | [@vreynolds](https://github.com/vreynolds)
+- maint: add config for gh release notes organization (#107) | [@JamieDanielson](https://github.com/JamieDanielson)
+
 ## [v10.3.0] Layer version 11 - 2022-10-07
 
 ### Added
