@@ -92,7 +92,7 @@ jobs:
             ls -l ~/artifacts/*
       - run:
           name: "S3 Release"
-          command: aws s3 cp ~/artifacts s3://honeycomb-builds/honeycombio/honeycomb-lambda-extension/${CIRCLE_TAG}/ --recursive
+          command: aws s3 cp ~/artifacts/linux s3://honeycomb-builds/honeycombio/honeycomb-lambda-extension/${CIRCLE_TAG}/ --recursive
 
 workflows:
   nightly:
