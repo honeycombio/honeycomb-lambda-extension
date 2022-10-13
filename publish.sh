@@ -116,3 +116,11 @@ for region in ${REGIONS_WITH_ARCH[@]}; do
         --principal "*" --action lambda:GetLayerVersion --no-cli-pager \
         > "${permit_results_json}"
 done
+
+echo ""
+echo "Published Layer Versions:"
+echo ""
+jq '{ region: (.LayerArn | split(":")[3]),
+        arch: (.LayerArn | split(":")[6] | split("-")[3]),
+        arn: .LayerVersionArn
+    }' publishing/publish-*.json
