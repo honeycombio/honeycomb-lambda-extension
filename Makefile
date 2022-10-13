@@ -90,6 +90,8 @@ zips:
 endif
 
 .PHONY: publish-sandbox
+# Ex: AWS_ARCH=arm64 AWS_REGION=us-east-1 make publish_sandbox
+#
 #: for serious, don't use this as-is for real publishing
 publish_sandbox: are_you_sure arch_required region_required zips
 	@echo "\n*** Publishing honeycomb-lambda-extension-${AWS_ARCH} to ${AWS_REGION}"
@@ -123,5 +125,5 @@ check_defined = \
 		$(call __check_defined,$1,$(strip $(value 2)))))
 __check_defined = \
 	$(if $(value $1),, \
-		$(error Undefined $1$(if $2, ($2))$(if $(value @), \
+		$(error Unset environment variable $1$(if $2, ($2))$(if $(value @), \
 			required by target `$@')))
