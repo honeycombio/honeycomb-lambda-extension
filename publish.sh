@@ -20,7 +20,7 @@ EXTENSION_NAME="honeycomb-lambda-extension"
 # Region list update from AWS Lambda pricing page as of 2022/10/12
 #
 # regions with x86_64 only support
-# REGIONS_NO_ARCH=(me-central-1) # listed on pricing page, but we need grant our publishing credentials permission to publish there first
+# REGIONS_NO_ARCH=(me-central-1) # listed on pricing page, but we need enable this region before publishing to it.
 REGIONS_NO_ARCH=()
 # Regions with x86_64 & arm64
 REGIONS_WITH_ARCH=(
