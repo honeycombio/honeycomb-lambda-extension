@@ -4,56 +4,41 @@ orbs:
   go: circleci/go@1.7.1
   aws-cli: circleci/aws-cli@2.0.3
 
-# Default version of Go to use for Go steps
-default_goversion: &default_goversion "1.19"
-
-matrix_goversions: &matrix_goversions
-  matrix:
-    parameters:
-      goversion: ["1.17", "1.18", "1.19"]
+# The Go we test and build against
+goversion: &goversion "1.19"
 
 jobs:
   test:
-    parameters:
-      goversion:
-        type: "string"
-        default: *default_goversion
     executor:
       name: go/default
-      tag: << parameters.goversion >>
+      tag: *goversion
     steps:
       - checkout
       - go/load-cache
       - go/mod-download
+      - run: make test
+      - store_test_results:
+          path: ./unit-tests.xml
       - go/save-cache
-      - go/test:
-          covermode: atomic
-          failfast: true
-          race: true
   build_extension:
-    parameters:
-      arch:
-        description: Target architecture
-        type: enum
-        enum: ["amd64", "arm64"]
-        default: "amd64"
     executor:
       name: go/default
-      tag: *default_goversion
+      tag: *goversion
     steps:
       - checkout
       - go/load-cache
       - go/mod-download
       - go/save-cache
       - run:
-          name: "Build Binary"
+          name: "Build binaries and layer content ZIPs"
           environment:
             GOOS: linux
-            GOARCH: << parameters.arch >>
+          command: make zips
+      - run:
+          name: "Copy binaries and ZIPs to persist for CI workspace"
           command: |
-            echo "Building extension"
-            mkdir ~/artifacts
-            go build -o ~/artifacts/honeycomb-lambda-extension-<< parameters.arch >> .
+            mkdir -p ~/artifacts
+            cp -R ./artifacts/* ~/artifacts/
       - persist_to_workspace:
           root: ~/
           paths:
@@ -119,13 +104,11 @@ workflows:
               only:
                 - main
     jobs:
-      - test: &test
-          <<: *matrix_goversions
+      - test
 
   build:
     jobs:
       - test:
-          <<: *test
           filters:
             tags:
               only: /.*/
@@ -138,11 +121,6 @@ workflows:
               ignore:
                 - /pull\/.*/
                 - /dependabot\/.*/
-          matrix:
-            parameters:
-              arch:
-                - "amd64"
-                - "arm64"
       - publish_s3:
           context: Honeycomb Secrets for Public Repos
           filters:

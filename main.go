@@ -30,6 +30,8 @@ const (
 )
 
 var (
+	version string // Fed in at build with -ldflags "-X main.version=<value>"
+
 	// This environment variable is set in the extension environment. It's expected to be
 	// a hostname:port combination.
 	runtimeAPI = os.Getenv("AWS_LAMBDA_RUNTIME_API")
@@ -63,6 +65,10 @@ var (
 )
 
 func init() {
+	if version == "" {
+		version = "dev"
+	}
+
 	logLevel := logrus.InfoLevel
 	if debug {
 		logLevel = logrus.DebugLevel
@@ -157,7 +163,7 @@ func libhoneyConfig() libhoney.ClientConfig {
 func newTransmission() *transmission.Honeycomb {
 	batchSendTimeout := envOrElseDuration("HONEYCOMB_BATCH_SEND_TIMEOUT", defaultBatchSendTimeout)
 
-	userAgent := fmt.Sprintf("honeycomb-lambda-extension-%s/%s", runtime.GOARCH, version)
+	userAgent := fmt.Sprintf("honeycomb-lambda-extension/%s (%s)", version, runtime.GOARCH)
 
 	return &transmission.Honeycomb{
 		MaxBatchSize:          libhoney.DefaultMaxBatchSize,

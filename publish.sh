@@ -2,73 +2,121 @@
 
 set -x
 
-if [[ "${CIRCLE_TAG}" == *dev ]]; then
-    EXTENSION_NAME="honeycomb-lambda-extension-dev"
-else
-    EXTENSION_NAME="honeycomb-lambda-extension"
-fi
+artifact_dir=~/artifacts/linux
+for arch in x86_64 arm64; do
+    if [ ! -f "${artifact_dir}/extension-${arch}.zip" ]; then
+        echo "${arch} extension does not exist, cannot publish."
+        exit 1;
+    fi
+done
 
-REGIONS_NO_ARCH=(eu-north-1 us-west-1 eu-west-3 ap-northeast-2 sa-east-1 ca-central-1 af-south-1
-                ap-east-1 eu-south-1 me-south-1 ap-southeast-3 ap-northeast-3)
-REGIONS_WITH_ARCH=(ap-south-1 eu-west-2 us-east-1 eu-west-1 ap-northeast-1 ap-southeast-1
-                   ap-southeast-2 eu-central-1 us-east-2 us-west-2)
+VERSION="${CIRCLE_TAG:-$(make version)}"
+# lambda layer names must match a regex: [a-zA-Z0-9-_]+)|[a-zA-Z0-9-_]+
+# turn periods into dashes and cry into your coffee
+VERSION=$(echo ${VERSION} | tr '.' '-')
 
-if [ ! -f ~/artifacts/honeycomb-lambda-extension-amd64 ]; then
-    echo "amd64 extension does not exist, cannot publish."
-    exit 1;
-fi
+EXTENSION_NAME="honeycomb-lambda-extension"
 
-if [ ! -f ~/artifacts/honeycomb-lambda-extension-arm64 ]; then
-    echo "arm64 extension does not exist, cannot publish."
-    exit 1;
-fi
+# Region list update from AWS Lambda pricing page as of 2022/10/12
+#
+# regions with x86_64 only support
+# REGIONS_NO_ARCH=(me-central-1) # listed on pricing page, but we need enable this region before publishing to it.
+REGIONS_NO_ARCH=()
+# Regions with x86_64 & arm64
+REGIONS_WITH_ARCH=(
+    af-south-1
+    ap-east-1
+    ap-northeast-1
+    ap-northeast-2
+    ap-northeast-3
+    ap-south-1
+    ap-southeast-1
+    ap-southeast-2
+    ap-southeast-3
+    ca-central-1
+    eu-central-1
+    eu-north-1
+    eu-south-1
+    eu-west-1
+    eu-west-2
+    eu-west-3
+    me-south-1
+    sa-east-1
+    us-east-1
+    us-east-2
+    us-west-1
+    us-west-2
+)
 
-cd ~/artifacts
 
-mkdir -p amd64/extensions
-cp honeycomb-lambda-extension-amd64 amd64/extensions/
-cd amd64
-# the zipfile MUST contain a directory named "extensions"
-# and that directory MUST contain the extension's executable
-zip -r extension.zip extensions
+results_dir="publishing"
+mkdir -p ${results_dir}
+
+### x86_64 ###
+
+layer_name_x86_64="${EXTENSION_NAME}-x86_64-${VERSION}"
 
 for region in ${REGIONS_WITH_ARCH[@]}; do
-    RESPONSE=`aws lambda publish-layer-version \
-        --layer-name "$EXTENSION_NAME-x86_64" \
+    id="x86_64-${region}"
+    publish_results_json="${results_dir}/publish-${id}.json"
+    permit_results_json="${results_dir}/permit-${id}.json"
+    aws lambda publish-layer-version \
+        --layer-name $layer_name_x86_64 \
         --compatible-architectures x86_64 \
-        --region $region --zip-file "fileb://extension.zip"`
-    VERSION=`echo $RESPONSE | jq -r '.Version'`
-    aws --region $region lambda add-layer-version-permission --layer-name "$EXTENSION_NAME-x86_64" \
-        --version-number $VERSION --statement-id "$EXTENSION_NAME-x86_64-$VERSION-$region" \
-        --principal "*" --action lambda:GetLayerVersion
+        --region $region \
+        --zip-file "fileb://${artifact_dir}/extension-x86_64.zip" \
+        --no-cli-pager \
+        > "${publish_results_json}"
+    layer_version=`jq -r '.Version' ${publish_results_json}`
+    aws --region $region lambda add-layer-version-permission --layer-name $layer_name_x86_64 \
+        --version-number $layer_version --statement-id "$EXTENSION_NAME-x86_64-$layer_version-$region" \
+        --principal "*" --action lambda:GetLayerVersion --no-cli-pager \
+        > "${permit_results_json}"
 done
 
 for region in ${REGIONS_NO_ARCH[@]}; do
-    RESPONSE=`aws lambda publish-layer-version \
-        --layer-name "$EXTENSION_NAME-x86_64" \
-        --region $region --zip-file "fileb://extension.zip"`
-    VERSION=`echo $RESPONSE | jq -r '.Version'`
-    aws --region $region lambda add-layer-version-permission --layer-name "$EXTENSION_NAME-x86_64" \
-        --version-number $VERSION --statement-id "$EXTENSION_NAME-x86_64-$VERSION-$region" \
-        --principal "*" --action lambda:GetLayerVersion
+    id="x86_64-${region}"
+    publish_results_json="${results_dir}/publish-${id}.json"
+    permit_results_json="${results_dir}/permit-${id}.json"
+    aws lambda publish-layer-version \
+        --layer-name $layer_name_x86_64 \
+        --region $region \
+        --zip-file "fileb://${artifact_dir}/extension-x86_64.zip" \
+        --no-cli-pager \
+        > "${publish_results_json}"
+    layer_version=`jq -r '.Version' ${publish_results_json}`
+    aws --region $region lambda add-layer-version-permission --layer-name $layer_name_x86_64 \
+        --version-number $layer_version --statement-id "$EXTENSION_NAME-x86_64-$layer_version-$region" \
+        --principal "*" --action lambda:GetLayerVersion --no-cli-pager \
+        > "${permit_results_json}"
 done
 
-cd ~/artifacts
+### arm64 ###
 
-mkdir -p arm64/extensions
-cp honeycomb-lambda-extension-arm64 arm64/extensions/
-cd arm64
-# the zipfile MUST contain a directory named "extensions"
-# and that directory MUST contain the extension's executable
-zip -r extension.zip extensions
+layer_name_arm64="${EXTENSION_NAME}-arm64-${VERSION}"
 
 for region in ${REGIONS_WITH_ARCH[@]}; do
-    RESPONSE=`aws lambda publish-layer-version \
-        --layer-name "$EXTENSION_NAME-arm64" \
+    id="arm64-${region}"
+    publish_results_json="${results_dir}/publish-${id}.json"
+    permit_results_json="${results_dir}/permit-${id}.json"
+    aws lambda publish-layer-version \
+        --layer-name $layer_name_arm64 \
         --compatible-architectures arm64 \
-        --region $region --zip-file "fileb://extension.zip"`
-    VERSION=`echo $RESPONSE | jq -r '.Version'`
-    aws --region $region lambda add-layer-version-permission --layer-name "$EXTENSION_NAME-arm64" \
-        --version-number $VERSION --statement-id "$EXTENSION_NAME-arm64-$VERSION-$region" \
-        --principal "*" --action lambda:GetLayerVersion
+        --region $region \
+        --zip-file "fileb://${artifact_dir}/extension-arm64.zip" \
+        --no-cli-pager \
+        > "${publish_results_json}"
+    layer_version=`jq -r '.Version' ${publish_results_json}`
+    aws --region $region lambda add-layer-version-permission --layer-name $layer_name_arm64 \
+        --version-number $layer_version --statement-id "$EXTENSION_NAME-arm64-$layer_version-$region" \
+        --principal "*" --action lambda:GetLayerVersion --no-cli-pager \
+        > "${permit_results_json}"
 done
+
+echo ""
+echo "Published Layer Versions:"
+echo ""
+jq '{ region: (.LayerArn | split(":")[3]),
+        arch: (.LayerArn | split(":")[6] | split("-")[3]),
+        arn: .LayerVersionArn
+    }' publishing/publish-*.json
