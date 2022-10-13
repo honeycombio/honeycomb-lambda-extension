@@ -15,11 +15,7 @@ VERSION="${CIRCLE_TAG:-$(make version)}"
 # turn periods into dashes and cry into your coffee
 VERSION=$(echo ${VERSION} | tr '.' '-')
 
-if [[ "${VERSION}" == *dev ]]; then
-    EXTENSION_NAME="honeycomb-lambda-extension-dev"
-else
-    EXTENSION_NAME="honeycomb-lambda-extension"
-fi
+EXTENSION_NAME="honeycomb-lambda-extension"
 
 # Region list update from AWS Lambda pricing page as of 2022/10/12
 #
