@@ -99,7 +99,7 @@ func main() {
 		APIHost:          apiHost,
 		BatchSendTimeout: envOrElseDuration("HONEYCOMB_BATCH_SEND_TIMEOUT", eventpublisher.DefaultBatchSendTimeout),
 		ConnectTimeout:   envOrElseDuration("HONEYCOMB_CONNECT_TIMEOUT", eventpublisher.DefaultConnectTimeout),
-		UserAgent:        fmt.Sprintf("honeycomb-lambda-extension-%s/%s", runtime.GOARCH, version),
+		UserAgent:        fmt.Sprintf("honeycomb-lambda-extension/%s (%s)", version, runtime.GOARCH),
 	})
 	if debug {
 		go readResponses(eventpublisherClient)
