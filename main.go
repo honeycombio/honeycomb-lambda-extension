@@ -62,24 +62,33 @@ func main() {
 		cancel()
 	}()
 
-	// register with Extensions API
-	extensionClient := extension.NewClient(config.RuntimeAPI, extensionName)
-	if !localMode {
-		res, err := extensionClient.Register(ctx)
-		if err != nil {
-			log.Panic("Could not register extension", err)
-		}
-		log.Debug("Response from register: ", res)
-	}
-
 	// initialize event publisher client
 	eventpublisherClient, err := eventpublisher.New(config, version)
 	if err != nil {
-		log.Warn("Could not initialize libhoney", err)
+		log.Warn("Could not initialize event publisher", err)
 	}
 
 	// initialize Logs API HTTP server
 	go logsapi.StartHTTPServer(config.LogsReceiverPort, eventpublisherClient)
+
+	// if running in localMode, wait on the context to be cancelled,
+	// then early return main() to end the process
+	if localMode {
+		select {
+		case <-ctx.Done():
+			return
+		}
+	}
+
+	// --- Lambda Runtime Activity ---
+
+	// register with Extensions API
+	extensionClient := extension.NewClient(config.RuntimeAPI, extensionName)
+	res, err := extensionClient.Register(ctx)
+	if err != nil {
+		log.Panic("Could not register extension", err)
+	}
+	log.Debug("Response from register: ", res)
 
 	// create logs api client
 	logsClient := logsapi.NewClient(config.RuntimeAPI, config.LogsReceiverPort, logsapi.BufferingOptions{
@@ -87,14 +96,6 @@ func main() {
 		MaxBytes:  uint64(config.LogsAPIMaxBytes),
 		MaxItems:  uint64(config.LogsAPIMaxItems),
 	})
-
-	// if running in localMode, just wait on the context to be cancelled
-	if localMode {
-		select {
-		case <-ctx.Done():
-			return
-		}
-	}
 
 	var logTypes []logsapi.LogType
 	disablePlatformMsg := config.LogsAPIDisablePlatformMessages
