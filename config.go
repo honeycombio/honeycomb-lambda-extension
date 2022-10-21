@@ -6,6 +6,63 @@ import (
 	"time"
 )
 
+const (
+	// default buffering options for logs api
+	defaultTimeoutMS = 1000
+	defaultMaxBytes  = 262144
+	defaultMaxItems  = 1000
+
+	// Waiting too long to send a batch of events can be
+	// expensive in Lambda. It's reasonable to expect a
+	// batch send to complete in this amount of time.
+	defaultBatchSendTimeout = time.Second * 15
+
+	// It's very generous to expect an HTTP connection to
+	// to be established in this time.
+	defaultConnectTimeout = time.Second * 3
+)
+
+type Config struct {
+	ApiKey                         string // Honeycomb API key
+	Dataset                        string // target dataset at Honeycomb to receive events
+	ApiHost                        string // Honeycomb API URL to which to send events
+	Debug                          bool   // Enable debug log output from the extension
+	RuntimeAPI                     string // Set by AWS in extension environment. Expected to be hostname:port.
+	LogsReceiverPort               int
+	LogsAPITimeoutMS               int
+	LogsAPIMaxBytes                int
+	LogsAPIMaxItems                int
+	LogsAPIDisablePlatformMessages bool
+
+	// The start-to-finish timeout to send a batch of events to Honeycomb.
+	BatchSendTimeout time.Duration
+
+	// The timeout to establish an HTTP connection to Honeycomb API. This value ends
+	// up being used as the Dial timeout for the underlying libhoney-go HTTP client. This setting
+	// is critical to help reduce impact caused by connectivity issues as it allows us to
+	// fail fast and not have to wait for the much longer HTTP client timeout to occur.
+	ConnectTimeout time.Duration
+}
+
+// Returns a new Honeycomb extension config with values populated
+// from environment variables.
+func NewConfigFromEnvironment() Config {
+	return Config{
+		ApiKey:                         os.Getenv("LIBHONEY_API_KEY"),
+		Dataset:                        os.Getenv("LIBHONEY_DATASET"),
+		ApiHost:                        os.Getenv("LIBHONEY_API_HOST"),
+		Debug:                          envOrElseBool("HONEYCOMB_DEBUG", false),
+		RuntimeAPI:                     os.Getenv("AWS_LAMBDA_RUNTIME_API"),
+		LogsReceiverPort:               3000, // a constant for now
+		LogsAPITimeoutMS:               envOrElseInt("LOGS_API_TIMEOUT_MS", defaultTimeoutMS),
+		LogsAPIMaxBytes:                envOrElseInt("LOGS_API_MAX_BYTES", defaultMaxBytes),
+		LogsAPIMaxItems:                envOrElseInt("LOGS_API_MAX_ITEMS", defaultMaxItems),
+		LogsAPIDisablePlatformMessages: envOrElseBool("LOGS_API_DISABLE_PLATFORM_MSGS", false),
+		BatchSendTimeout:               envOrElseDuration("HONEYCOMB_BATCH_SEND_TIMEOUT", defaultBatchSendTimeout),
+		ConnectTimeout:                 envOrElseDuration("HONEYCOMB_CONNECT_TIMEOUT", defaultConnectTimeout),
+	}
+}
+
 // envOrElseInt retrieves an environment variable value by the given key,
 // return an integer based on that value.
 //

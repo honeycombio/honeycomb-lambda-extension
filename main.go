@@ -21,28 +21,10 @@ import (
 
 var (
 	version string // Fed in at build with -ldflags "-X main.version=<value>"
-
-	// This environment variable is set in the extension environment. It's expected to be
-	// a hostname:port combination.
-	runtimeAPI = os.Getenv("AWS_LAMBDA_RUNTIME_API")
+	config  Config // Honeycomb extension configuration
 
 	// extension API configuration
-	extensionName   = filepath.Base(os.Args[0])
-	extensionClient = extension.NewClient(runtimeAPI, extensionName)
-
-	// logs API configuration
-	logsServerPort = 3000
-
-	// default buffering options for logs api
-	defaultTimeoutMS = 1000
-	defaultMaxBytes  = 262144
-	defaultMaxItems  = 1000
-
-	// honeycomb configuration
-	apiKey  = os.Getenv("LIBHONEY_API_KEY")
-	dataset = os.Getenv("LIBHONEY_DATASET")
-	apiHost = os.Getenv("LIBHONEY_API_HOST")
-	debug   = envOrElseBool("HONEYCOMB_DEBUG", false)
+	extensionName = filepath.Base(os.Args[0])
 
 	// when run in local mode, we don't attempt to register the extension or subscribe
 	// to log events - useful for testing
@@ -59,8 +41,10 @@ func init() {
 		version = "dev"
 	}
 
+	config = NewConfigFromEnvironment()
+
 	logLevel := logrus.InfoLevel
-	if debug {
+	if config.Debug {
 		logLevel = logrus.DebugLevel
 	}
 	logrus.SetLevel(logLevel)
@@ -82,6 +66,7 @@ func main() {
 	}()
 
 	// register with Extensions API
+	extensionClient := extension.NewClient(config.RuntimeAPI, extensionName)
 	if !localMode {
 		res, err := extensionClient.Register(ctx)
 		if err != nil {
@@ -92,14 +77,14 @@ func main() {
 
 	// initialize event publisher client
 	eventpublisherClient, err := eventpublisher.New(eventpublisher.Config{
-		APIKey:           apiKey,
-		Dataset:          dataset,
-		APIHost:          apiHost,
-		BatchSendTimeout: envOrElseDuration("HONEYCOMB_BATCH_SEND_TIMEOUT", eventpublisher.DefaultBatchSendTimeout),
-		ConnectTimeout:   envOrElseDuration("HONEYCOMB_CONNECT_TIMEOUT", eventpublisher.DefaultConnectTimeout),
+		APIKey:           config.ApiKey,
+		Dataset:          config.Dataset,
+		APIHost:          config.ApiHost,
+		BatchSendTimeout: config.BatchSendTimeout,
+		ConnectTimeout:   config.ConnectTimeout,
 		UserAgent:        fmt.Sprintf("honeycomb-lambda-extension/%s (%s)", version, runtime.GOARCH),
 	})
-	if debug {
+	if config.Debug {
 		go readResponses(eventpublisherClient)
 	}
 	if err != nil {
@@ -107,13 +92,13 @@ func main() {
 	}
 
 	// initialize Logs API HTTP server
-	go logsapi.StartHTTPServer(logsServerPort, eventpublisherClient)
+	go logsapi.StartHTTPServer(config.LogsReceiverPort, eventpublisherClient)
 
 	// create logs api client
-	logsClient := logsapi.NewClient(runtimeAPI, logsServerPort, logsapi.BufferingOptions{
-		TimeoutMS: uint(envOrElseInt("LOGS_API_TIMEOUT_MS", defaultTimeoutMS)),
-		MaxBytes:  uint64(envOrElseInt("LOGS_API_MAX_BYTES", defaultMaxBytes)),
-		MaxItems:  uint64(envOrElseInt("LOGS_API_MAX_ITEMS", defaultMaxItems)),
+	logsClient := logsapi.NewClient(config.RuntimeAPI, config.LogsReceiverPort, logsapi.BufferingOptions{
+		TimeoutMS: uint(config.LogsAPITimeoutMS),
+		MaxBytes:  uint64(config.LogsAPIMaxBytes),
+		MaxItems:  uint64(config.LogsAPIMaxItems),
 	})
 
 	// if running in localMode, just wait on the context to be cancelled
@@ -125,7 +110,7 @@ func main() {
 	}
 
 	var logTypes []logsapi.LogType
-	disablePlatformMsg := envOrElseBool("LOGS_API_DISABLE_PLATFORM_MSGS", false)
+	disablePlatformMsg := config.LogsAPIDisablePlatformMessages
 
 	if disablePlatformMsg {
 		logTypes = []logsapi.LogType{logsapi.FunctionLog}
