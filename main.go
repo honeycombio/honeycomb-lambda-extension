@@ -9,9 +9,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"syscall"
-	"time"
 
 	logrus "github.com/sirupsen/logrus"
 
@@ -142,68 +140,6 @@ func main() {
 	log.Debug("Response from subscribe: ", subRes)
 
 	eventprocessor.New(extensionClient, eventpublisherClient).Run(ctx, cancel)
-}
-
-// (helper) Retrieve an environment variable value by the given key,
-// return an integer based on that value.
-//
-// If env var cannot be found by the key or value fails to cast to an int,
-// return the given fallback integer.
-func envOrElseInt(key string, fallback int) int {
-	if value, ok := os.LookupEnv(key); ok {
-		v, err := strconv.Atoi(value)
-		if err != nil {
-			log.Warnf("%s was set to '%s', but failed to parse to an integer. Falling back to default of %d.", key, value, fallback)
-			return fallback
-		}
-		return v
-	}
-	return fallback
-}
-
-// (helper) Retrieve an environment variable value by the given key,
-// return a boolean based on that value.
-//
-// If env var cannot be found by the key or value fails to cast to a bool,
-// return the given fallback boolean.
-func envOrElseBool(key string, fallback bool) bool {
-	if value, ok := os.LookupEnv(key); ok {
-		v, err := strconv.ParseBool(value)
-		if err != nil {
-			log.Warnf("%s was set to '%s', but failed to parse to true or false. Falling back to default of %t.", key, value, fallback)
-			return fallback
-		}
-		return v
-	}
-	return fallback
-}
-
-// (helper) Retrieve an environment variable value by the given key,
-// return the result of parsing the value as a duration.
-//
-// If value is an integer instead of a duration,
-// return a duration assuming seconds as the unit.
-//
-// If env var cannot be found by the key,
-// or the value fails to parse as a duration or integer,
-// return the given fallback duration.
-func envOrElseDuration(key string, fallback time.Duration) time.Duration {
-	value, ok := os.LookupEnv(key)
-	if ok {
-		dur, err := time.ParseDuration(value)
-		if err == nil {
-			return dur
-		}
-
-		v, err := strconv.Atoi(value)
-		if err == nil {
-			dur_s := time.Duration(v) * time.Second
-			log.Warnf("%s was set to %d (an integer, not a duration). Assuming 'seconds' as unit, resulting in %s.", key, v, dur_s)
-			return dur_s
-		}
-		log.Warnf("%s was set to '%s', but failed to parse to a duration. Falling back to default of %s.", key, value, fallback)
-	}
-	return fallback
 }
 
 func readResponses(client *eventpublisher.Client) {
