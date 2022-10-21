@@ -16,17 +16,9 @@ import (
 	logrus "github.com/sirupsen/logrus"
 
 	"github.com/honeycombio/honeycomb-lambda-extension/eventprocessor"
+	"github.com/honeycombio/honeycomb-lambda-extension/eventpublisher"
 	"github.com/honeycombio/honeycomb-lambda-extension/extension"
 	"github.com/honeycombio/honeycomb-lambda-extension/logsapi"
-	libhoney "github.com/honeycombio/libhoney-go"
-	"github.com/honeycombio/libhoney-go/transmission"
-)
-
-const (
-	// Waiting too long to send a batch of events can be
-	// expensive in Lambda. It's reasonable to expect a
-	// batch send to complete in this amount of time.
-	defaultBatchSendTimeout = time.Second * 15
 )
 
 var (
@@ -100,17 +92,24 @@ func main() {
 		log.Debug("Response from register: ", res)
 	}
 
-	// initialize libhoney
-	libhoneyClient, err := libhoney.NewClient(libhoneyConfig())
+	// initialize event publisher client
+	eventpublisherClient, err := eventpublisher.New(eventpublisher.Config{
+		APIKey:           apiKey,
+		Dataset:          dataset,
+		APIHost:          apiHost,
+		BatchSendTimeout: envOrElseDuration("HONEYCOMB_BATCH_SEND_TIMEOUT", eventpublisher.DefaultBatchSendTimeout),
+		ConnectTimeout:   envOrElseDuration("HONEYCOMB_CONNECT_TIMEOUT", eventpublisher.DefaultConnectTimeout),
+		UserAgent:        fmt.Sprintf("honeycomb-lambda-extension/%s (%s)", version, runtime.GOARCH),
+	})
 	if debug {
-		go readResponses(libhoneyClient.TxResponses())
+		go readResponses(eventpublisherClient)
 	}
 	if err != nil {
 		log.Warn("Could not initialize libhoney", err)
 	}
 
 	// initialize Logs API HTTP server
-	go logsapi.StartHTTPServer(logsServerPort, libhoneyClient)
+	go logsapi.StartHTTPServer(logsServerPort, eventpublisherClient)
 
 	// create logs api client
 	logsClient := logsapi.NewClient(runtimeAPI, logsServerPort, logsapi.BufferingOptions{
@@ -142,38 +141,7 @@ func main() {
 	}
 	log.Debug("Response from subscribe: ", subRes)
 
-	eventprocessor.New(extensionClient, libhoneyClient).Run(ctx, cancel)
-}
-
-// configure libhoney
-func libhoneyConfig() libhoney.ClientConfig {
-	if apiKey == "" || dataset == "" {
-		log.Warnln("LIBHONEY_API_KEY or LIBHONEY_DATASET not set, disabling libhoney")
-		return libhoney.ClientConfig{}
-	}
-
-	return libhoney.ClientConfig{
-		APIKey:       apiKey,
-		Dataset:      dataset,
-		APIHost:      apiHost,
-		Transmission: newTransmission(),
-	}
-}
-
-func newTransmission() *transmission.Honeycomb {
-	batchSendTimeout := envOrElseDuration("HONEYCOMB_BATCH_SEND_TIMEOUT", defaultBatchSendTimeout)
-
-	userAgent := fmt.Sprintf("honeycomb-lambda-extension/%s (%s)", version, runtime.GOARCH)
-
-	return &transmission.Honeycomb{
-		MaxBatchSize:          libhoney.DefaultMaxBatchSize,
-		BatchTimeout:          libhoney.DefaultBatchTimeout,
-		MaxConcurrentBatches:  libhoney.DefaultMaxConcurrentBatches,
-		PendingWorkCapacity:   libhoney.DefaultPendingWorkCapacity,
-		UserAgentAddition:     userAgent,
-		EnableMsgpackEncoding: true,
-		BatchSendTimeout:      batchSendTimeout,
-	}
+	eventprocessor.New(extensionClient, eventpublisherClient).Run(ctx, cancel)
 }
 
 // (helper) Retrieve an environment variable value by the given key,
@@ -238,8 +206,8 @@ func envOrElseDuration(key string, fallback time.Duration) time.Duration {
 	return fallback
 }
 
-func readResponses(responses chan transmission.Response) {
-	for r := range responses {
+func readResponses(client *eventpublisher.Client) {
+	for r := range client.TxResponses() {
 		var metadata string
 		if r.Metadata != nil {
 			metadata = fmt.Sprintf("%s", r.Metadata)

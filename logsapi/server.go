@@ -19,6 +19,10 @@ type LogMessage struct {
 	Record interface{} `json:"record"`
 }
 
+type eventCreator interface {
+	NewEvent() *libhoney.Event
+}
+
 var (
 	// set up logging defaults for our own logging output
 	log = logrus.WithFields(logrus.Fields{
@@ -28,7 +32,7 @@ var (
 
 // handler receives batches of log messages from the Lambda Logs API. Each
 // LogMessage is sent to Honeycomb as a separate event.
-func handler(libhoneyClient *libhoney.Client) http.HandlerFunc {
+func handler(client eventCreator) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Debug("handler - log batch received")
 		body, err := ioutil.ReadAll(r.Body)
@@ -58,7 +62,7 @@ func handler(libhoneyClient *libhoney.Client) http.HandlerFunc {
 		// is impossible, then we just add the string as a field "record" in Honeycomb.
 		// This is what will happen if the function emits plain, non-structured strings.
 		for _, msg := range logs {
-			event := libhoneyClient.NewEvent()
+			event := client.NewEvent()
 			event.AddField("lambda_extension.type", msg.Type)
 
 			switch record := msg.Record.(type) {
@@ -176,7 +180,7 @@ func parseFunctionTimestamp(msg LogMessage, body map[string]interface{}) time.Ti
 
 // StartHTTPServer starts a logs API server on the specified port. The server will receive
 // log messages from the Lambda Logs API and send them to Honeycomb as events.
-func StartHTTPServer(port int, client *libhoney.Client) {
+func StartHTTPServer(port int, client eventCreator) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", handler(client))
 	server := &http.Server{

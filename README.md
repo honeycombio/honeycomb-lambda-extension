@@ -57,6 +57,11 @@ The extension is configurable via environment variables set for your lambda func
   There are other valid time units ("ns", "us"/"µs", "h"), but their use does not fit a timeout for HTTP connections made in the AWS Lambda compute environment.
   A batch send that times out has a single built-in retry; total time a lambda invocation may spend waiting is double this value.
   A very low duration may result in duplicate events, if Honeycomb data ingest is successful but slower than this timeout (rare, but possible).
+- `HONEYCOMB_CONNECT_TIMEOUT` - Optional.
+  This timeout setting configures how long it can take to establish a TCP connection to Honeycomb. This setting is useful if there are ever connectivity issues, as it allows an upload requests to fail faster and not wait until the much longer batch send timeout is reached.
+  Default: 3s (3 seconds).
+  Value should be given in a format parseable as a duration, such as "1m", "15s", or "750ms".
+  There are other valid time units ("ns", "us"/"µs", "h"), but their use does not fit a timeout for HTTP connections made in the AWS Lambda compute environment.
 
 ### Terraform Example
 
