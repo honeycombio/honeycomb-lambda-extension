@@ -54,12 +54,12 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	// exit cleanly on SIGTERM or SIGINT
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGTERM, syscall.SIGINT)
+	exit := make(chan os.Signal, 1)
+	signal.Notify(exit, os.Interrupt, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 	go func() {
-		s := <-sigs
+		sig := <-exit
+		log.Warn("Received ", sig, " - shutting down.")
 		cancel()
-		log.Warn("Received", s, "Exiting")
 	}()
 
 	// register with Extensions API
