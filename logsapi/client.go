@@ -10,6 +10,8 @@ import (
 	"net/url"
 	"path"
 	"strings"
+
+	"github.com/honeycombio/honeycomb-lambda-extension/config"
 )
 
 // Protocol represents the protocol that this extension should receive logs by
@@ -66,6 +68,23 @@ type SubscribeRequest struct {
 // SubscribeResponse is the response from /logs subscribe message
 type SubscribeResponse struct {
 	Message string
+}
+
+func FriendlierSubscribe(ctx context.Context, cfg config.Config, extensionID string) (*SubscribeResponse, error) {
+	client := NewClient(cfg.RuntimeAPI, cfg.LogsReceiverPort, BufferingOptions{
+		TimeoutMS: uint(cfg.LogsAPITimeoutMS),
+		MaxBytes:  uint64(cfg.LogsAPIMaxBytes),
+		MaxItems:  uint64(cfg.LogsAPIMaxItems),
+	})
+
+	var logTypes []LogType
+	if cfg.LogsAPIDisablePlatformMessages {
+		logTypes = []LogType{FunctionLog}
+	} else {
+		logTypes = []LogType{PlatformLog, FunctionLog}
+	}
+
+	return client.Subscribe(ctx, extensionID, logTypes)
 }
 
 // NewClient returns a new Lambda Logs API client

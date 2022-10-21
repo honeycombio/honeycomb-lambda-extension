@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/honeycombio/honeycomb-lambda-extension/config"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -23,18 +24,19 @@ func TestEventPublisherHappyPathSend(t *testing.T) {
 	testServer := httptest.NewServer(testHandler)
 	defer testServer.Close()
 
-	eventpublisherClient, err := New(Config{
-		APIKey:    "test-api-key",
-		Dataset:   "test-dataset",
-		UserAgent: "test-user-agent",
-		APIHost:   testServer.URL,
-	})
+	t.Setenv("LIBHONEY_API_KEY", "test-api-key")
+	t.Setenv("LIBHONEY_DATASET", "test-dataset")
+	t.Setenv("LIBHONEY_API_HOST", testServer.URL)
+
+	testConfig := config.FromEnvironment()
+
+	eventpublisherClient, err := New(testConfig, "test-version")
 	assert.Nil(t, err, "unexpected error when creating client")
 
 	err = sendTestEvent(eventpublisherClient)
 	assert.Nil(t, err, "unexpected error sending test event")
 
-	txResponse := <-eventpublisherClient.TxResponses()
+	txResponse := <-eventpublisherClient.txResponses()
 	assert.Nil(t, txResponse.Err, "unexpected error in response")
 	assert.Equal(t, 1, int(atomic.LoadInt64(&testHandler.callCount)), "expected a single client request")
 	assert.Equal(t, 200, txResponse.StatusCode)
@@ -49,19 +51,20 @@ func TestEventPublisherBatchSendTimeout(t *testing.T) {
 	testServer := httptest.NewServer(testHandler)
 	defer testServer.Close()
 
-	eventpublisherClient, err := New(Config{
-		APIKey:           "test-api-key",
-		Dataset:          "test-dataset",
-		UserAgent:        "test-user-agent",
-		APIHost:          testServer.URL,
-		BatchSendTimeout: time.Millisecond * 10,
-	})
+	t.Setenv("LIBHONEY_API_KEY", "test-api-key")
+	t.Setenv("LIBHONEY_DATASET", "test-dataset")
+	t.Setenv("LIBHONEY_API_HOST", testServer.URL)
+	t.Setenv("HONEYCOMB_BATCH_SEND_TIMEOUT", "10ms")
+
+	testConfig := config.FromEnvironment()
+
+	eventpublisherClient, err := New(testConfig, "test-version")
 	assert.Nil(t, err, "unexpected error when creating client")
 
 	err = sendTestEvent(eventpublisherClient)
 	assert.Nil(t, err, "unexpected error sending test event")
 
-	txResponse := <-eventpublisherClient.TxResponses()
+	txResponse := <-eventpublisherClient.txResponses()
 	assert.Equal(t, 2, int(atomic.LoadInt64(&testHandler.callCount)), "expected 2 requests due to retry")
 	assert.NotNil(t, txResponse.Err, "expected error in response")
 	txResponseErr, ok := txResponse.Err.(net.Error)
@@ -74,19 +77,21 @@ func TestEventPublisherConnectTimeout(t *testing.T) {
 	testServer := httptest.NewServer(testHandler)
 	testServer.Close()
 
-	eventpublisherClient, err := New(Config{
-		APIKey:         "test-api-key",
-		Dataset:        "test-dataset",
-		UserAgent:      "test-user-agent",
-		APIHost:        testServer.URL,
-		ConnectTimeout: time.Millisecond * 10,
-	})
+	t.Setenv("LIBHONEY_API_KEY", "test-api-key")
+	t.Setenv("LIBHONEY_DATASET", "test-dataset")
+	t.Setenv("LIBHONEY_API_HOST", testServer.URL)
+	t.Setenv("HONEYCOMB_CONNECT_TIMEOUT", "10ms")
+
+	testConfig := config.FromEnvironment()
+
+	eventpublisherClient, err := New(testConfig, "test-version")
+
 	assert.Nil(t, err, "unexpected error creating client")
 
 	err = sendTestEvent(eventpublisherClient)
 	assert.Nil(t, err, "unexpected error sending test event")
 
-	txResponse := <-eventpublisherClient.TxResponses()
+	txResponse := <-eventpublisherClient.txResponses()
 	assert.Equal(t, 0, int(atomic.LoadInt64(&testHandler.callCount)), "expected 0 requests as server was shutdown")
 	assert.NotNil(t, txResponse.Err, "expected response to be an error")
 	txResponseErr, ok := txResponse.Err.(net.Error)

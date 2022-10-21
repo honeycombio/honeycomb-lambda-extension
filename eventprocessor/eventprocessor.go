@@ -50,6 +50,7 @@ func New(extensionClient eventPoller, libhoneyClient eventFlusher) *Server {
 
 // Run executes an event loop to poll and process events from the Lambda extension API
 func (s *Server) Run(ctx context.Context, cancel context.CancelFunc) {
+	log.Debug("Starting ...")
 	for {
 		select {
 		case <-ctx.Done():
