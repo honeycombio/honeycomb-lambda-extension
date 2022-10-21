@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"runtime"
 	"syscall"
 
 	logrus "github.com/sirupsen/logrus"
@@ -76,14 +75,7 @@ func main() {
 	}
 
 	// initialize event publisher client
-	eventpublisherClient, err := eventpublisher.New(eventpublisher.Config{
-		APIKey:           config.ApiKey,
-		Dataset:          config.Dataset,
-		APIHost:          config.ApiHost,
-		BatchSendTimeout: config.BatchSendTimeout,
-		ConnectTimeout:   config.ConnectTimeout,
-		UserAgent:        fmt.Sprintf("honeycomb-lambda-extension/%s (%s)", version, runtime.GOARCH),
-	})
+	eventpublisherClient, err := eventpublisher.New(config, version)
 	if config.Debug {
 		go readResponses(eventpublisherClient)
 	}

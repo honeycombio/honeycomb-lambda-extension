@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/honeycombio/honeycomb-lambda-extension/extension"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -23,12 +24,13 @@ func TestEventPublisherHappyPathSend(t *testing.T) {
 	testServer := httptest.NewServer(testHandler)
 	defer testServer.Close()
 
-	eventpublisherClient, err := New(Config{
-		APIKey:    "test-api-key",
-		Dataset:   "test-dataset",
-		UserAgent: "test-user-agent",
-		APIHost:   testServer.URL,
-	})
+	t.Setenv("LIBHONEY_API_KEY", "test-api-key")
+	t.Setenv("LIBHONEY_DATASET", "test-dataset")
+	t.Setenv("LIBHONEY_API_HOST", testServer.URL)
+
+	testConfig := extension.NewConfigFromEnvironment()
+
+	eventpublisherClient, err := New(testConfig, "test-version")
 	assert.Nil(t, err, "unexpected error when creating client")
 
 	err = sendTestEvent(eventpublisherClient)
@@ -49,13 +51,14 @@ func TestEventPublisherBatchSendTimeout(t *testing.T) {
 	testServer := httptest.NewServer(testHandler)
 	defer testServer.Close()
 
-	eventpublisherClient, err := New(Config{
-		APIKey:           "test-api-key",
-		Dataset:          "test-dataset",
-		UserAgent:        "test-user-agent",
-		APIHost:          testServer.URL,
-		BatchSendTimeout: time.Millisecond * 10,
-	})
+	t.Setenv("LIBHONEY_API_KEY", "test-api-key")
+	t.Setenv("LIBHONEY_DATASET", "test-dataset")
+	t.Setenv("LIBHONEY_API_HOST", testServer.URL)
+	t.Setenv("HONEYCOMB_BATCH_SEND_TIMEOUT", "10ms")
+
+	testConfig := extension.NewConfigFromEnvironment()
+
+	eventpublisherClient, err := New(testConfig, "test-version")
 	assert.Nil(t, err, "unexpected error when creating client")
 
 	err = sendTestEvent(eventpublisherClient)
@@ -74,13 +77,14 @@ func TestEventPublisherConnectTimeout(t *testing.T) {
 	testServer := httptest.NewServer(testHandler)
 	testServer.Close()
 
-	eventpublisherClient, err := New(Config{
-		APIKey:         "test-api-key",
-		Dataset:        "test-dataset",
-		UserAgent:      "test-user-agent",
-		APIHost:        testServer.URL,
-		ConnectTimeout: time.Millisecond * 10,
-	})
+	t.Setenv("LIBHONEY_API_KEY", "test-api-key")
+	t.Setenv("LIBHONEY_DATASET", "test-dataset")
+	t.Setenv("LIBHONEY_API_HOST", testServer.URL)
+	t.Setenv("HONEYCOMB_CONNECT_TIMEOUT", "10ms")
+
+	testConfig := extension.NewConfigFromEnvironment()
+
+	eventpublisherClient, err := New(testConfig, "test-version")
 	assert.Nil(t, err, "unexpected error creating client")
 
 	err = sendTestEvent(eventpublisherClient)
