@@ -3,8 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
-	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -76,9 +74,6 @@ func main() {
 
 	// initialize event publisher client
 	eventpublisherClient, err := eventpublisher.New(config, version)
-	if config.Debug {
-		go readResponses(eventpublisherClient)
-	}
 	if err != nil {
 		log.Warn("Could not initialize libhoney", err)
 	}
@@ -117,25 +112,4 @@ func main() {
 	log.Debug("Response from subscribe: ", subRes)
 
 	eventprocessor.New(extensionClient, eventpublisherClient).Run(ctx, cancel)
-}
-
-func readResponses(client *eventpublisher.Client) {
-	for r := range client.TxResponses() {
-		var metadata string
-		if r.Metadata != nil {
-			metadata = fmt.Sprintf("%s", r.Metadata)
-		}
-		if r.StatusCode >= 200 && r.StatusCode < 300 {
-			message := "Successfully sent event to Honeycomb"
-			if metadata != "" {
-				message += fmt.Sprintf(": %s", metadata)
-			}
-			log.Debugf("%s", message)
-		} else if r.StatusCode == http.StatusUnauthorized {
-			log.Debugf("Error sending event to honeycomb! The APIKey was rejected, please verify your APIKey. %s", metadata)
-		} else {
-			log.Debugf("Error sending event to Honeycomb! %s had code %d, err %v and response body %s",
-				metadata, r.StatusCode, r.Err, r.Body)
-		}
-	}
 }

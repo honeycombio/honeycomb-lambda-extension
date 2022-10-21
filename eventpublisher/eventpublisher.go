@@ -5,7 +5,6 @@ import (
 	"net"
 	"net/http"
 	"runtime"
-	"time"
 
 	"github.com/honeycombio/honeycomb-lambda-extension/extension"
 	"github.com/honeycombio/libhoney-go"
@@ -61,9 +60,13 @@ func New(config extension.Config, version string) (*Client, error) {
 		return nil, err
 	}
 
-	return &Client{
-		libhoneyClient: libhoneyClient,
-	}, nil
+	publisher := &Client{libhoneyClient: libhoneyClient}
+
+	if config.Debug {
+		go publisher.readResponses()
+	}
+
+	return publisher, nil
 }
 
 func (c *Client) NewEvent() *libhoney.Event {
@@ -76,4 +79,26 @@ func (c *Client) Flush() {
 
 func (c *Client) TxResponses() chan transmission.Response {
 	return c.libhoneyClient.TxResponses()
+}
+
+// read batch send responses from Honeycomb and log success/failures
+func (c *Client) readResponses() {
+	for r := range c.TxResponses() {
+		var metadata string
+		if r.Metadata != nil {
+			metadata = fmt.Sprintf("%s", r.Metadata)
+		}
+		if r.StatusCode >= 200 && r.StatusCode < 300 {
+			message := "Successfully sent event to Honeycomb"
+			if metadata != "" {
+				message += fmt.Sprintf(": %s", metadata)
+			}
+			log.Debugf("%s", message)
+		} else if r.StatusCode == http.StatusUnauthorized {
+			log.Debugf("Error sending event to honeycomb! The APIKey was rejected, please verify your APIKey. %s", metadata)
+		} else {
+			log.Debugf("Error sending event to Honeycomb! %s had code %d, err %v and response body %s",
+				metadata, r.StatusCode, r.Err, r.Body)
+		}
+	}
 }
