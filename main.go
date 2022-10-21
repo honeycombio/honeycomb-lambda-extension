@@ -20,8 +20,8 @@ import (
 )
 
 var (
-	version string // Fed in at build with -ldflags "-X main.version=<value>"
-	config  Config // Honeycomb extension configuration
+	version string           // Fed in at build with -ldflags "-X main.version=<value>"
+	config  extension.Config // Honeycomb extension configuration
 
 	// extension API configuration
 	extensionName = filepath.Base(os.Args[0])
@@ -41,7 +41,7 @@ func init() {
 		version = "dev"
 	}
 
-	config = NewConfigFromEnvironment()
+	config = extension.NewConfigFromEnvironment()
 
 	logLevel := logrus.InfoLevel
 	if config.Debug {
