@@ -114,11 +114,11 @@ func parseMessageTimestamp(event *libhoney.Event, msg LogMessage) time.Time {
 // parseFunctionTimestamp is a helper function that will return a timestamp for a function log message.
 // There are some precedence rules:
 //
-// 1. Look for a "time" field from a libhoney transmission in the message body.
-// 2. Look for a "timestamp" field in the message body.
-// 3. If not present, look for a "duration_ms" field and subtract it from the log event
-//    timestamp.
-// 4. If neither are present, just use the log timestamp.
+//  1. Look for a "time" field from a libhoney transmission in the message body.
+//  2. Look for a "timestamp" field in the message body.
+//  3. If not present, look for a "duration_ms" field and subtract it from the log event
+//     timestamp.
+//  4. If neither are present, just use the log timestamp.
 func parseFunctionTimestamp(msg LogMessage, body map[string]interface{}) time.Time {
 	log.Debug("parseFunctionTimestamp")
 
