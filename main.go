@@ -90,27 +90,12 @@ func main() {
 	}
 	log.Debug("Response from register: ", res)
 
-	// create logs api client
-	logsClient := logsapi.NewClient(config.RuntimeAPI, config.LogsReceiverPort, logsapi.BufferingOptions{
-		TimeoutMS: uint(config.LogsAPITimeoutMS),
-		MaxBytes:  uint64(config.LogsAPIMaxBytes),
-		MaxItems:  uint64(config.LogsAPIMaxItems),
-	})
-
-	var logTypes []logsapi.LogType
-	disablePlatformMsg := config.LogsAPIDisablePlatformMessages
-
-	if disablePlatformMsg {
-		logTypes = []logsapi.LogType{logsapi.FunctionLog}
-	} else {
-		logTypes = []logsapi.LogType{logsapi.PlatformLog, logsapi.FunctionLog}
-	}
-
-	subRes, err := logsClient.Subscribe(ctx, extensionClient.ExtensionID, logTypes)
+	// subscribe to Lambda log streams
+	subscription, err := logsapi.Subscribe(ctx, config, extensionClient.ExtensionID)
 	if err != nil {
 		log.Warn("Could not subscribe to events: ", err)
 	}
-	log.Debug("Response from subscribe: ", subRes)
+	log.Debug("Response from subscribe: ", subscription)
 
 	eventprocessor.New(extensionClient, eventpublisherClient).Run(ctx, cancel)
 }

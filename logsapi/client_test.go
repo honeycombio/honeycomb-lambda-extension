@@ -34,10 +34,10 @@ func TestSubscribeLogs(t *testing.T) {
 	server := SubscribeServer(t)
 	defer server.Close()
 
-	client := NewClient(server.URL, destinationPort, bufferingConfig)
+	client := newClient(server.URL, destinationPort, bufferingConfig)
 	ctx := context.TODO()
 
-	resp, err := client.Subscribe(ctx, testExtensionID, []LogType{PlatformLog, FunctionLog})
+	resp, err := client.subscribeToLogTypes(ctx, testExtensionID, []LogType{PlatformLog, FunctionLog})
 	if err != nil {
 		t.Error(err)
 	}
@@ -45,13 +45,13 @@ func TestSubscribeLogs(t *testing.T) {
 }
 
 func TestURL(t *testing.T) {
-	client := NewClient("honeycomb.io/foo", 3000, BufferingOptions{})
+	client := newClient("honeycomb.io/foo", 3000, BufferingOptions{})
 	assert.Equal(t, "http://honeycomb.io/foo/2020-08-15", client.baseURL)
 
 	url := client.url("/foo/bar/baz")
 	assert.Equal(t, "http://honeycomb.io/foo/2020-08-15/foo/bar/baz", url)
 
-	client = NewClient("https://mywebsite.com:9000", 3000, BufferingOptions{})
+	client = newClient("https://mywebsite.com:9000", 3000, BufferingOptions{})
 
 	assert.Equal(t, "https://mywebsite.com:9000/2020-08-15", client.baseURL)
 	assert.Equal(t, "https://mywebsite.com:9000/2020-08-15/foo/bar", client.url("foo/bar"))
