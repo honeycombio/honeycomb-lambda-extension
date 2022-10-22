@@ -69,7 +69,7 @@ func main() {
 	}
 
 	// initialize Logs API HTTP server
-	go logsapi.StartHTTPServer(config.LogsReceiverPort, eventpublisherClient)
+	go logsapi.StartLogsReceiver(config.LogsReceiverPort, eventpublisherClient)
 
 	// if running in localMode, wait on the context to be cancelled,
 	// then early return main() to end the process
