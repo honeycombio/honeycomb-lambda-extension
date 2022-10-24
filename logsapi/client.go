@@ -10,6 +10,8 @@ import (
 	"net/url"
 	"path"
 	"strings"
+
+	"github.com/honeycombio/honeycomb-lambda-extension/extension"
 )
 
 // Protocol represents the protocol that this extension should receive logs by
@@ -68,8 +70,30 @@ type SubscribeResponse struct {
 	Message string
 }
 
-// NewClient returns a new Lambda Logs API client
-func NewClient(baseURL string, port int, bufferingOpts BufferingOptions) *Client {
+// Subscribe wraps the logic of creating a client for the AWS Lambda Logs API
+// and using the client to subscribe the extension to the configured log type streams.
+func Subscribe(ctx context.Context, config extension.Config, extensionID string) (*SubscribeResponse, error) {
+	// create logs api client
+	logsClient := newClient(config.RuntimeAPI, config.LogsReceiverPort, BufferingOptions{
+		TimeoutMS: uint(config.LogsAPITimeoutMS),
+		MaxBytes:  uint64(config.LogsAPIMaxBytes),
+		MaxItems:  uint64(config.LogsAPIMaxItems),
+	})
+
+	var logTypes []LogType
+	disablePlatformMsg := config.LogsAPIDisablePlatformMessages
+
+	if disablePlatformMsg {
+		logTypes = []LogType{FunctionLog}
+	} else {
+		logTypes = []LogType{PlatformLog, FunctionLog}
+	}
+
+	return logsClient.subscribeToLogTypes(ctx, extensionID, logTypes)
+}
+
+// newClient returns a new Lambda Logs API client
+func newClient(baseURL string, port int, bufferingOpts BufferingOptions) *Client {
 	if !strings.HasPrefix(baseURL, "http") {
 		baseURL = fmt.Sprintf("http://%s", baseURL)
 	}
@@ -82,8 +106,9 @@ func NewClient(baseURL string, port int, bufferingOpts BufferingOptions) *Client
 	}
 }
 
-// Subscribe will subscribe to events sent from the Logs API
-func (c *Client) Subscribe(ctx context.Context, extensionID string, types []LogType) (*SubscribeResponse, error) {
+// subscribeToLogTypes will subscribe to event streams sent
+// from the Logs API of the given log types.
+func (c *Client) subscribeToLogTypes(ctx context.Context, extensionID string, types []LogType) (*SubscribeResponse, error) {
 	subscribe := SubscribeRequest{
 		Dest: Destination{
 			Protocol: HTTPProtocol,

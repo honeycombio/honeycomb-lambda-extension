@@ -73,6 +73,7 @@ func (s *Server) pollEventAndProcess(ctx context.Context, cancel context.CancelF
 	defer func() {
 		s.libhoneyClient.Flush()
 		if res.EventType == extension.Shutdown {
+			log.Warn("Received Lambda " + extension.Shutdown + ", events flushed and extension is shutting down.")
 			cancel()
 		}
 	}()

@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/honeycombio/honeycomb-lambda-extension/extension"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -23,12 +24,13 @@ func TestEventPublisherHappyPathSend(t *testing.T) {
 	testServer := httptest.NewServer(testHandler)
 	defer testServer.Close()
 
-	eventpublisherClient, err := New(Config{
-		APIKey:    "test-api-key",
-		Dataset:   "test-dataset",
-		UserAgent: "test-user-agent",
-		APIHost:   testServer.URL,
-	})
+	testConfig := extension.Config{
+		APIKey:  "test-api-key",
+		Dataset: "test-dataset",
+		APIHost: testServer.URL,
+	}
+
+	eventpublisherClient, err := New(testConfig, "test-version")
 	assert.Nil(t, err, "unexpected error when creating client")
 
 	err = sendTestEvent(eventpublisherClient)
@@ -49,13 +51,14 @@ func TestEventPublisherBatchSendTimeout(t *testing.T) {
 	testServer := httptest.NewServer(testHandler)
 	defer testServer.Close()
 
-	eventpublisherClient, err := New(Config{
+	testConfig := extension.Config{
 		APIKey:           "test-api-key",
 		Dataset:          "test-dataset",
-		UserAgent:        "test-user-agent",
 		APIHost:          testServer.URL,
-		BatchSendTimeout: time.Millisecond * 10,
-	})
+		BatchSendTimeout: 10 * time.Millisecond,
+	}
+
+	eventpublisherClient, err := New(testConfig, "test-version")
 	assert.Nil(t, err, "unexpected error when creating client")
 
 	err = sendTestEvent(eventpublisherClient)
@@ -74,13 +77,14 @@ func TestEventPublisherConnectTimeout(t *testing.T) {
 	testServer := httptest.NewServer(testHandler)
 	testServer.Close()
 
-	eventpublisherClient, err := New(Config{
+	testConfig := extension.Config{
 		APIKey:         "test-api-key",
 		Dataset:        "test-dataset",
-		UserAgent:      "test-user-agent",
 		APIHost:        testServer.URL,
-		ConnectTimeout: time.Millisecond * 10,
-	})
+		ConnectTimeout: 10 * time.Millisecond,
+	}
+
+	eventpublisherClient, err := New(testConfig, "test-version")
 	assert.Nil(t, err, "unexpected error creating client")
 
 	err = sendTestEvent(eventpublisherClient)

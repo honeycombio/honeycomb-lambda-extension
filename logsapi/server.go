@@ -114,11 +114,11 @@ func parseMessageTimestamp(event *libhoney.Event, msg LogMessage) time.Time {
 // parseFunctionTimestamp is a helper function that will return a timestamp for a function log message.
 // There are some precedence rules:
 //
-// 1. Look for a "time" field from a libhoney transmission in the message body.
-// 2. Look for a "timestamp" field in the message body.
-// 3. If not present, look for a "duration_ms" field and subtract it from the log event
-//    timestamp.
-// 4. If neither are present, just use the log timestamp.
+//  1. Look for a "time" field from a libhoney transmission in the message body.
+//  2. Look for a "timestamp" field in the message body.
+//  3. If not present, look for a "duration_ms" field and subtract it from the log event
+//     timestamp.
+//  4. If neither are present, just use the log timestamp.
 func parseFunctionTimestamp(msg LogMessage, body map[string]interface{}) time.Time {
 	log.Debug("parseFunctionTimestamp")
 
@@ -178,9 +178,19 @@ func parseFunctionTimestamp(msg LogMessage, body map[string]interface{}) time.Ti
 	return messageTime
 }
 
-// StartHTTPServer starts a logs API server on the specified port. The server will receive
-// log messages from the Lambda Logs API and send them to Honeycomb as events.
-func StartHTTPServer(port int, client eventCreator) {
+// StartLogsReceiver starts a small HTTP server on the specified port.
+// The server receives log messages in AWS Lambda's [Logs API message format]
+// (JSON array of messages) and the handler will send them to Honeycomb
+// as events with the eventCreator provided as client.
+//
+// When running in Lambda, the extension's subscription to log types will
+// result in the Lambda Logs API publishing log messages to this receiver.
+//
+// When running in localMode, the server will be started for manual posting of
+// log messages to the specified port for testing.
+//
+// [Logs API message format]: https://docs.aws.amazon.com/lambda/latest/dg/runtimes-logs-api.html#runtimes-logs-api-msg
+func StartLogsReceiver(port int, client eventCreator) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", handler(client))
 	server := &http.Server{
