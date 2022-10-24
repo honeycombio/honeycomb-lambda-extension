@@ -1,5 +1,15 @@
 # Honeycomb Lambda Extension Changelog
 
+## v11.1.0 - 2022-10-24
+
+### Enhancements
+
+- feat: configurable HTTP transport connect timeout (#111) | @danvendia
+
+### Maintenance
+
+- maint: refactor config and simplify main() (#112) | @robbkidd
+
 ## v11.0.0 - 2022-10-13
 
 ### 💥 Breaking Changes 💥
