@@ -23,9 +23,9 @@ const (
 )
 
 type Config struct {
-	ApiKey                         string // Honeycomb API key
+	APIKey                         string // Honeycomb API key
 	Dataset                        string // target dataset at Honeycomb to receive events
-	ApiHost                        string // Honeycomb API URL to which to send events
+	APIHost                        string // Honeycomb API URL to which to send events
 	Debug                          bool   // Enable debug log output from the extension
 	RuntimeAPI                     string // Set by AWS in extension environment. Expected to be hostname:port.
 	LogsReceiverPort               int
@@ -48,9 +48,9 @@ type Config struct {
 // from environment variables.
 func NewConfigFromEnvironment() Config {
 	return Config{
-		ApiKey:                         os.Getenv("LIBHONEY_API_KEY"),
+		APIKey:                         os.Getenv("LIBHONEY_API_KEY"),
 		Dataset:                        os.Getenv("LIBHONEY_DATASET"),
-		ApiHost:                        os.Getenv("LIBHONEY_API_HOST"),
+		APIHost:                        os.Getenv("LIBHONEY_API_HOST"),
 		Debug:                          envOrElseBool("HONEYCOMB_DEBUG", false),
 		RuntimeAPI:                     os.Getenv("AWS_LAMBDA_RUNTIME_API"),
 		LogsReceiverPort:               3000, // a constant for now

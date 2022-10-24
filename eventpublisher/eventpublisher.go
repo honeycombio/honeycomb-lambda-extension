@@ -25,7 +25,7 @@ type Client struct {
 
 // New returns a configured Client
 func New(config extension.Config, version string) (*Client, error) {
-	if config.ApiKey == "" || config.Dataset == "" {
+	if config.APIKey == "" || config.Dataset == "" {
 		log.Warnln("APIKey or Dataset not set, disabling libhoney")
 		libhoneyClient, err := libhoney.NewClient(libhoney.ClientConfig{})
 		if err != nil {
@@ -42,9 +42,9 @@ func New(config extension.Config, version string) (*Client, error) {
 	}).DialContext
 
 	libhoneyClient, err := libhoney.NewClient(libhoney.ClientConfig{
-		APIKey:  config.ApiKey,
+		APIKey:  config.APIKey,
 		Dataset: config.Dataset,
-		APIHost: config.ApiHost,
+		APIHost: config.APIHost,
 		Transmission: &transmission.Honeycomb{
 			MaxBatchSize:          libhoney.DefaultMaxBatchSize,
 			BatchTimeout:          libhoney.DefaultBatchTimeout,
