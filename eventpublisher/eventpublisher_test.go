@@ -24,11 +24,11 @@ func TestEventPublisherHappyPathSend(t *testing.T) {
 	testServer := httptest.NewServer(testHandler)
 	defer testServer.Close()
 
-	t.Setenv("LIBHONEY_API_KEY", "test-api-key")
-	t.Setenv("LIBHONEY_DATASET", "test-dataset")
-	t.Setenv("LIBHONEY_API_HOST", testServer.URL)
-
-	testConfig := extension.NewConfigFromEnvironment()
+	testConfig := extension.Config{
+		APIKey:  "test-api-key",
+		Dataset: "test-dataset",
+		APIHost: testServer.URL,
+	}
 
 	eventpublisherClient, err := New(testConfig, "test-version")
 	assert.Nil(t, err, "unexpected error when creating client")
@@ -51,12 +51,12 @@ func TestEventPublisherBatchSendTimeout(t *testing.T) {
 	testServer := httptest.NewServer(testHandler)
 	defer testServer.Close()
 
-	t.Setenv("LIBHONEY_API_KEY", "test-api-key")
-	t.Setenv("LIBHONEY_DATASET", "test-dataset")
-	t.Setenv("LIBHONEY_API_HOST", testServer.URL)
-	t.Setenv("HONEYCOMB_BATCH_SEND_TIMEOUT", "10ms")
-
-	testConfig := extension.NewConfigFromEnvironment()
+	testConfig := extension.Config{
+		APIKey:           "test-api-key",
+		Dataset:          "test-dataset",
+		APIHost:          testServer.URL,
+		BatchSendTimeout: 10 * time.Millisecond,
+	}
 
 	eventpublisherClient, err := New(testConfig, "test-version")
 	assert.Nil(t, err, "unexpected error when creating client")
@@ -77,12 +77,12 @@ func TestEventPublisherConnectTimeout(t *testing.T) {
 	testServer := httptest.NewServer(testHandler)
 	testServer.Close()
 
-	t.Setenv("LIBHONEY_API_KEY", "test-api-key")
-	t.Setenv("LIBHONEY_DATASET", "test-dataset")
-	t.Setenv("LIBHONEY_API_HOST", testServer.URL)
-	t.Setenv("HONEYCOMB_CONNECT_TIMEOUT", "10ms")
-
-	testConfig := extension.NewConfigFromEnvironment()
+	testConfig := extension.Config{
+		APIKey:         "test-api-key",
+		Dataset:        "test-dataset",
+		APIHost:        testServer.URL,
+		ConnectTimeout: 10 * time.Millisecond,
+	}
 
 	eventpublisherClient, err := New(testConfig, "test-version")
 	assert.Nil(t, err, "unexpected error creating client")
