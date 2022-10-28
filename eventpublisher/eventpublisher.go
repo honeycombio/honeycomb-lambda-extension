@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"runtime"
 
 	"github.com/honeycombio/honeycomb-lambda-extension/extension"
 	"github.com/honeycombio/libhoney-go"
@@ -50,7 +49,7 @@ func New(config extension.Config, version string) (*Client, error) {
 			BatchTimeout:          libhoney.DefaultBatchTimeout,
 			MaxConcurrentBatches:  libhoney.DefaultMaxConcurrentBatches,
 			PendingWorkCapacity:   libhoney.DefaultPendingWorkCapacity,
-			UserAgentAddition:     fmt.Sprintf("honeycomb-lambda-extension/%s (%s)", version, runtime.GOARCH),
+			UserAgentAddition:     fmt.Sprintf("honeycomb-lambda-extension/%s", version),
 			EnableMsgpackEncoding: true,
 			BatchSendTimeout:      config.BatchSendTimeout,
 			Transport:             httpTransport,

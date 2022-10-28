@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"runtime"
 	"sync/atomic"
 	"syscall"
 	"testing"
@@ -99,6 +100,29 @@ func TestEventPublisherConnectTimeout(t *testing.T) {
 		fmt.Sprintf("expected connection refused error but got %v", txResponseErr))
 }
 
+func TestEventPublisherUserAgent(t *testing.T) {
+	testHandler := &TestHandler{
+		requestAssertions: func(r *http.Request) {
+			assert.Contains(t, r.Header.Get("User-Agent"), "honeycomb-lambda-extension/a-test-version")
+			assert.Contains(t, r.Header.Get("User-Agent"), runtime.GOARCH)
+		},
+	}
+	testServer := httptest.NewServer(testHandler)
+	defer testServer.Close()
+
+	testConfig := extension.Config{
+		APIKey:  "test-api-key",
+		Dataset: "test-dataset",
+		APIHost: testServer.URL,
+	}
+
+	eventpublisherClient, err := New(testConfig, "a-test-version")
+	assert.Nil(t, err, "unexpected error when creating client")
+
+	err = sendTestEvent(eventpublisherClient)
+	assert.Nil(t, err, "unexpected error sending test event")
+}
+
 // ###########################################
 // Test implementations
 // ###########################################
@@ -123,14 +147,23 @@ func sendTestEvent(client *Client) error {
 // TestHandler is a handler used for mocking server responses for the underlying HTTP calls
 // made by libhoney-go
 type TestHandler struct {
-	callCount    int64
-	sleep        time.Duration
-	responseCode int
-	response     []byte
+	callCount         int64
+	sleep             time.Duration
+	requestAssertions func(r *http.Request)
+	responseCode      int
+	response          []byte
 }
 
 func (h *TestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	atomic.AddInt64(&h.callCount, 1)
+
+	if h.responseCode == 0 {
+		h.responseCode = 200
+	}
+
+	if h.requestAssertions != nil {
+		h.requestAssertions(r)
+	}
 
 	_, err := ioutil.ReadAll(r.Body)
 	if err != nil {
