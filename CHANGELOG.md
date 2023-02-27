@@ -1,5 +1,16 @@
 # Honeycomb Lambda Extension Changelog
 
+## v11.1.1 - 2023-02-27
+
+### Maintenance
+
+- maint: Update AWS regions we publish to (#123) | [@MikeGoldsmith](https://github.com/MikeGoldsmith)
+- maint: Update CODEOWNERS (#122) | [@vreynolds](https://github.com/vreynolds)
+- chore: update dependabot.yml (#120) | [@kentquirk](https://github.com/kentquirk)
+- maint: remove duplicate GOARCH in user-agent (#117)| [@robbkidd](https://github.com/robbkidd)
+- Bump github.com/stretchr/testify from 1.8.0 to 1.8.1 (#115)
+- Bump github.com/honeycombio/libhoney-go from 1.17.0 to 1.18.0 (#116)
+
 ## v11.1.0 - 2022-10-24
 
 ### Enhancements
