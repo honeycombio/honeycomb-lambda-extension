@@ -17,13 +17,18 @@ VERSION=$(echo ${VERSION} | tr '.' '-')
 
 EXTENSION_NAME="honeycomb-lambda-extension"
 
-# Region list update from AWS Lambda pricing page as of 2022/10/12
+# Region list update from AWS Lambda pricing page as of 2023/02/27
+# Commented out lines are listed on available but require opt-in before we can publish to it.
 #
 # regions with x86_64 only support
-# REGIONS_NO_ARCH=(me-central-1) # listed on pricing page, but we need enable this region before publishing to it.
-REGIONS_NO_ARCH=()
+REGIONS_NO_ARM=(
+    ap-southeast-4
+    eu-central-2
+    eu-south-2
+    me-central-1
+)
 # Regions with x86_64 & arm64
-REGIONS_WITH_ARCH=(
+REGIONS_WITH_ARM=(
     af-south-1
     ap-east-1
     ap-northeast-1
@@ -56,7 +61,7 @@ mkdir -p ${results_dir}
 
 layer_name_x86_64="${EXTENSION_NAME}-x86_64-${VERSION}"
 
-for region in ${REGIONS_WITH_ARCH[@]}; do
+for region in ${REGIONS_WITH_ARM[@]}; do
     id="x86_64-${region}"
     publish_results_json="${results_dir}/publish-${id}.json"
     permit_results_json="${results_dir}/permit-${id}.json"
@@ -74,7 +79,7 @@ for region in ${REGIONS_WITH_ARCH[@]}; do
         > "${permit_results_json}"
 done
 
-for region in ${REGIONS_NO_ARCH[@]}; do
+for region in ${REGIONS_NO_ARM[@]}; do
     id="x86_64-${region}"
     publish_results_json="${results_dir}/publish-${id}.json"
     permit_results_json="${results_dir}/permit-${id}.json"
@@ -95,7 +100,7 @@ done
 
 layer_name_arm64="${EXTENSION_NAME}-arm64-${VERSION}"
 
-for region in ${REGIONS_WITH_ARCH[@]}; do
+for region in ${REGIONS_WITH_ARM[@]}; do
     id="arm64-${region}"
     publish_results_json="${results_dir}/publish-${id}.json"
     permit_results_json="${results_dir}/permit-${id}.json"
