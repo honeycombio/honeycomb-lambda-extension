@@ -124,16 +124,19 @@ $ aws lambda publish-layer-version \
 
 Use the [AWS Lambda pricing](https://aws.amazon.com/lambda/pricing/) page to get list of regions that support x86_64 and arm64.
 
+As of 2023-02-27, follow these instructions to more readily compare region names to region ids:
+
 - View HTML source, navigate to dropdowns, copy whole ul element for each platform and add to local file (eg regions-x86_64.txt)
 - Tidy up content to only keep the region ids
 - Sort the file alphabetically
   - `sort -n regions-x86_64.txt > regions-x86_64-sorted.txt`
 - Perform a diff on the two files
   - `diff --ignore-matching-lines --side-by-side regions-arm64-sorted.txt regions-x86_64-sorted.txt`
-- Update REGIONS_WITH_ARCH (supports both x86_64 and arm64) and REGIONS_NO_ARCH (only supports x86_64) in [publish.sh](./publish.sh) with derived sets
+- Update REGIONS_WITH_ARM (supports both x86_64 and arm64) and REGIONS_NO_ARM (only supports x86_64) in [publish.sh](./publish.sh) with derived sets
   - All regions should support x86_64 and a small subset will not support arm64
+- **Note**: the source sometimes shows all regions and should not be considered a reliable way to tell whether ARM is supported; this should be a spot check with the dropdown provided.
 
-NOTE: We may need to opt-in to a region before we can publish to it.
+NOTE: We need to opt-in to a new region before we can publish to it.
 The [Regions and zones](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-regions-availability-zones.html) page shows if a region requires opt-in.
 
 ## Contributions
