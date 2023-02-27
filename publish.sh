@@ -17,12 +17,11 @@ VERSION=$(echo ${VERSION} | tr '.' '-')
 
 EXTENSION_NAME="honeycomb-lambda-extension"
 
-# Region list update from AWS Lambda pricing page as of 2022/10/12
+# Region list update from AWS Lambda pricing page as of 2023/02/27
 # Commented out lines are listed on available but require opt-in before we can publish to it.
 #
 # regions with x86_64 only support
 REGIONS_NO_ARCH=(
-    # ap-south-1
     # ap-southeast-4
     # eu-central-2
     # eu-south-2
