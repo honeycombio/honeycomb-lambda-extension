@@ -1,5 +1,9 @@
 # Creating a new release
 
+1. Use [go-licenses](https://github.com/google/go-licenses) to ensure all project dependency licenses are correclty represented in this repository:
+  1. Install go-licenses (if not already installed) `go install github.com/google/go-licenses@latest`
+  1. Run and save licenses `go-licenses save github.com/honeycombio/buildevents --save_path="./LICENSES"`
+  1. If there are any changes, submit PR to update licenses.
 1. Draft a docs PR for this release.
 1. Update `CHANGELOG.md` with the changes since the last release.
 1. Commit changes, push, and open a release preparation PR for review.
