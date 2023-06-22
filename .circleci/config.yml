@@ -2,7 +2,7 @@ version: 2.1
 
 orbs:
   go: circleci/go@1.7.1
-  aws-cli: circleci/aws-cli@2.0.3
+  aws-cli: circleci/aws-cli@3.2.0
 
 # The Go we test and build against
 goversion: &goversion "1.19"
@@ -52,10 +52,9 @@ jobs:
       - attach_workspace:
           at: ~/
       - checkout
-      - aws-cli/install
       - aws-cli/setup:
-          aws-access-key-id: AWS_ACCESS_KEY_ID
-          aws-secret-access-key: AWS_SECRET_ACCESS_KEY
+          role-arn: "arn:aws:iam::702835727665:role/circleci-public-repos"
+          role-session-name: "honeycomb-lambda-extension"
           aws-region: AWS_REGION
       - run:
           name: "Publish extension to AWS"
@@ -80,10 +79,9 @@ jobs:
     steps:
       - attach_workspace:
           at: ~/
-      - aws-cli/install
       - aws-cli/setup:
-          aws-access-key-id: AWS_ACCESS_KEY_ID
-          aws-secret-access-key: AWS_SECRET_ACCESS_KEY
+          role-arn: "arn:aws:iam::702835727665:role/circleci-public-repos"
+          role-session-name: "agentless-integrations-for-aws"
           aws-region: AWS_REGION
       - run:
           name: "Artifacts being published"
