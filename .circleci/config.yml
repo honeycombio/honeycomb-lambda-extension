@@ -81,7 +81,7 @@ jobs:
           at: ~/
       - aws-cli/setup:
           role-arn: "arn:aws:iam::702835727665:role/circleci-public-repos"
-          role-session-name: "agentless-integrations-for-aws"
+          role-session-name: "honeycomb-lambda-extension"
           aws-region: AWS_REGION
       - run:
           name: "Artifacts being published"
