@@ -53,7 +53,7 @@ jobs:
           at: ~/
       - checkout
       - aws-cli/setup:
-          role-arn: "arn:aws:iam::702835727665:role/circleci-public-repos"
+          role-arn: ${AWS_ROLE_ARN}
           role-session-name: "honeycomb-lambda-extension"
           aws-region: AWS_REGION
       - run:
