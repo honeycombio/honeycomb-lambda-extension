@@ -1,5 +1,15 @@
 # Honeycomb Lambda Extension Changelog
 
+## v11.1.2 - 2023-10-13
+
+### Maintenance
+
+- maint(deps): bump github.com/sirupsen/logrus from 1.9.0 to 1.9.3 (#133) | dependabot[bot]
+- maint(deps): bump github.com/honeycombio/libhoney-go from 1.18.0 to 1.20.0 (#134) | dependabot[bot]
+- maint(deps): bump github.com/stretchr/testify from 1.8.2 to 1.8.4 (#130) | dependabot[bot]
+- maint(deps): bump github.com/stretchr/testify from 1.8.1 to 1.8.2 (#126) | dependabot[bot]
+- maint: Add dependency licenses (#127) | Mike Goldsmith
+
 ## v11.1.1 - 2023-02-27
 
 ### Maintenance
