@@ -3,7 +3,7 @@ module github.com/honeycombio/honeycomb-lambda-extension
 go 1.19
 
 require (
-	github.com/honeycombio/libhoney-go v1.20.0
+	github.com/honeycombio/libhoney-go v1.21.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.8.4
 )
