@@ -9,9 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/honeycombio/libhoney-go/transmission"
-
 	libhoney "github.com/honeycombio/libhoney-go"
+	"github.com/honeycombio/libhoney-go/transmission"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -212,4 +211,14 @@ func TestTimestampsFunctionMessageWithDuration(t *testing.T) {
 	ts = ts.Add(-1 * d)
 	assert.Equal(t, ts.String(), event.Timestamp.String())
 
+}
+
+func TestLibhoneyEventWithSampleRate(t *testing.T) {
+	events := postMessages(t, []LogMessage{{
+		Time:   epochTimestamp,
+		Type:   "function",
+		Record: `{"time": "2020-12-25T12:34:56.789Z", "samplerate": 5, "data": {"foo": "bar", "duration_ms": 54} }`,
+	}})
+	event := events[0]
+	assert.EqualValues(t, 5, event.SampleRate)
 }
