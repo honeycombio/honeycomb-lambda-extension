@@ -117,15 +117,15 @@ func parseSampleRate(body map[string]interface{}) uint {
 	var foundRate int
 
 	if ok {
-		// duration_ms may be a float (e.g. 43.23), integer (e.g. 54) or a string (e.g. "43")
+		// samplerate may be a float (e.g. 43.23), integer (e.g. 54) or a string (e.g. "43")
 		switch sampleRate := rate.(type) {
 		case float64:
 			foundRate = int(sampleRate)
 		case int64:
 			foundRate = int(sampleRate)
 		case string:
-			if d, err := strconv.ParseInt(sampleRate, 10, 32); err == nil {
-				foundRate = int(d)
+			if d, err := strconv.Atoi(sampleRate); err == nil {
+				foundRate = d
 			}
 		}
 	}
