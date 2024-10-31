@@ -214,11 +214,59 @@ func TestTimestampsFunctionMessageWithDuration(t *testing.T) {
 }
 
 func TestLibhoneyEventWithSampleRate(t *testing.T) {
-	events := postMessages(t, []LogMessage{{
-		Time:   epochTimestamp,
-		Type:   "function",
-		Record: `{"time": "2020-12-25T12:34:56.789Z", "samplerate": 5, "data": {"foo": "bar", "duration_ms": 54} }`,
-	}})
-	event := events[0]
-	assert.EqualValues(t, 5, event.SampleRate)
+	t.Run("integer", func(t *testing.T) {
+		events := postMessages(t, []LogMessage{{
+			Time:   epochTimestamp,
+			Type:   "function",
+			Record: `{"time": "2020-12-25T12:34:56.789Z", "samplerate": 5, "data": {"foo": "bar", "duration_ms": 54} }`,
+		}})
+		event := events[0]
+		assert.EqualValues(t, 5, event.SampleRate)
+	})
+	t.Run("float", func(t *testing.T) {
+		events := postMessages(t, []LogMessage{{
+			Time:   epochTimestamp,
+			Type:   "function",
+			Record: `{"time": "2020-12-25T12:34:56.789Z", "samplerate": 10.1, "data": {"foo": "bar", "duration_ms": 54} }`,
+		}})
+		event := events[0]
+		// we round downwards
+		assert.EqualValues(t, 10, event.SampleRate)
+	})
+	t.Run("string", func(t *testing.T) {
+		events := postMessages(t, []LogMessage{{
+			Time:   epochTimestamp,
+			Type:   "function",
+			Record: `{"time": "2020-12-25T12:34:56.789Z", "samplerate": "11", "data": {"foo": "bar", "duration_ms": 54} }`,
+		}})
+		event := events[0]
+		assert.EqualValues(t, 11, event.SampleRate)
+	})
+	t.Run("string without a number", func(t *testing.T) {
+		events := postMessages(t, []LogMessage{{
+			Time:   epochTimestamp,
+			Type:   "function",
+			Record: `{"time": "2020-12-25T12:34:56.789Z", "samplerate": "hello", "data": {"foo": "bar", "duration_ms": 54} }`,
+		}})
+		event := events[0]
+		assert.EqualValues(t, 1, event.SampleRate)
+	})
+	t.Run("bool", func(t *testing.T) {
+		events := postMessages(t, []LogMessage{{
+			Time:   epochTimestamp,
+			Type:   "function",
+			Record: `{"time": "2020-12-25T12:34:56.789Z", "samplerate": true, "data": {"foo": "bar", "duration_ms": 54} }`,
+		}})
+		event := events[0]
+		assert.EqualValues(t, 1, event.SampleRate)
+	})
+	t.Run("negative number", func(t *testing.T) {
+		events := postMessages(t, []LogMessage{{
+			Time:   epochTimestamp,
+			Type:   "function",
+			Record: `{"time": "2020-12-25T12:34:56.789Z", "samplerate": -12, "data": {"foo": "bar", "duration_ms": 54} }`,
+		}})
+		event := events[0]
+		assert.EqualValues(t, 1, event.SampleRate)
+	})
 }
