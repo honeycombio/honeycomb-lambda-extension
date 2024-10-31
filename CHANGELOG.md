@@ -1,13 +1,5 @@
 # Honeycomb Lambda Extension Changelog
 
-## Unreleased
-
-Events that contain a sample rate (under the `samplerate` key in a JSON-formatted event) will have that sample rate
-forwarded to honeycomb
-
-### Fixed
-- fix: forward the sample rate from the message
-
 ## v11.1.2 - 2023-10-13
 
 ### Maintenance
