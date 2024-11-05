@@ -85,6 +85,7 @@ func handler(client eventCreator) http.HandlerFunc {
 						// data is not a map, so treat the record as flat JSON adding all keys as fields
 						event.Add(jsonRecord)
 					}
+					event.SampleRate = parseSampleRate(jsonRecord)
 				}
 			default:
 				// In the case of platform.start and platform.report messages, msg.Record
@@ -93,7 +94,7 @@ func handler(client eventCreator) http.HandlerFunc {
 				event.Add(msg.Record)
 			}
 			event.Metadata, _ = event.Fields()["name"]
-			event.Send()
+			event.SendPresampled()
 			log.Debug("handler - event enqueued")
 		}
 	}
@@ -109,6 +110,29 @@ func parseMessageTimestamp(event *libhoney.Event, msg LogMessage) time.Time {
 		return time.Now()
 	}
 	return ts
+}
+
+func parseSampleRate(body map[string]interface{}) uint {
+	rate, ok := body["samplerate"]
+	var foundRate int
+
+	if ok {
+		// samplerate may be a float (e.g. 43.23), integer (e.g. 54) or a string (e.g. "43")
+		switch sampleRate := rate.(type) {
+		case float64:
+			foundRate = int(sampleRate)
+		case int64:
+			foundRate = int(sampleRate)
+		case string:
+			if d, err := strconv.Atoi(sampleRate); err == nil {
+				foundRate = d
+			}
+		}
+	}
+	if foundRate < 1 {
+		return 1
+	}
+	return uint(foundRate)
 }
 
 // parseFunctionTimestamp is a helper function that will return a timestamp for a function log message.
