@@ -1,5 +1,20 @@
 # Honeycomb Lambda Extension Changelog
 
+## v11.2.0 - 2024-11-05
+
+### Fixes
+
+- fix: forward the sample rate from the message (#146) | @NLincoln
+
+### Maintenance
+
+- docs: update vulnerability reporting process (#144) | @robbkidd
+- maint: add labels to release.yml for auto-generated grouping (#142) | @JamieDanielson
+- maint: update codeowners to pipeline-team (#137) | @JamieDanielson
+- maint: update codeowners to pipeline (#136) | @JamieDanielson
+- maint(deps): bump github.com/honeycombio/libhoney-go from 1.20.0 to 1.23.1 (#147) | @dependabot
+- maint(deps): remove reviewers from dependabot.yml (#148) | @codeboten
+
 ## v11.1.2 - 2023-10-13
 
 ### Maintenance
