@@ -1,6 +1,6 @@
 module github.com/honeycombio/honeycomb-lambda-extension
 
-go 1.19
+go 1.22
 
 require (
 	github.com/honeycombio/libhoney-go v1.25.0
