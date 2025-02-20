@@ -1,5 +1,19 @@
 # Honeycomb Lambda Extension Changelog
 
+## v11.3.0 - 2025-02-19
+
+This release fixes a security vulnerability from standard library in go 1.19.
+
+### Fixes
+
+- fix: bump go version to 1.22 (#154) | [@Yingrong Zhao](https://github.com/VinozzZ)
+
+### Maintenance
+
+- maint(deps): bump github.com/honeycombio/libhoney-go from 1.24.0 to 1.25.0 (#153) | @dependabot
+- maint(deps): bump github.com/stretchr/testify from 1.9.0 to 1.10.0 (#152) | @dependabot
+- maint(deps): bump github.com/honeycombio/libhoney-go from 1.23.1 to 1.24.0 (#151) | @dependabot
+
 ## v11.2.0 - 2024-11-05
 
 ### Fixes
