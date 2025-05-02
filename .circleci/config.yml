@@ -5,7 +5,7 @@ orbs:
   aws-cli: circleci/aws-cli@3.2.0
 
 # The Go we test and build against
-goversion: &goversion "1.22"
+goversion: &goversion "1.24"
 
 jobs:
   test:
@@ -47,7 +47,7 @@ jobs:
           path: ~/artifacts
   publish_aws:
     docker:
-      - image: cimg/go:1.22
+      - image: cimg/go:1.24
     steps:
       - attach_workspace:
           at: ~/
@@ -75,7 +75,7 @@ jobs:
           command: ghr -draft -n ${CIRCLE_TAG} -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} ${CIRCLE_TAG} ~/artifacts/linux
   publish_s3:
     docker:
-      - image: cimg/go:1.22
+      - image: cimg/go:1.24
     steps:
       - attach_workspace:
           at: ~/
