@@ -1,9 +1,14 @@
 package extension
 
 import (
+	"encoding/base64"
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/kms"
 )
 
 const (
@@ -48,7 +53,7 @@ type Config struct {
 // from environment variables.
 func NewConfigFromEnvironment() Config {
 	return Config{
-		APIKey:                         os.Getenv("LIBHONEY_API_KEY"),
+		APIKey:                         getApiKey(),
 		Dataset:                        os.Getenv("LIBHONEY_DATASET"),
 		APIHost:                        os.Getenv("LIBHONEY_API_HOST"),
 		Debug:                          envOrElseBool("HONEYCOMB_DEBUG", false),
@@ -129,4 +134,54 @@ func envOrElseDuration(key string, fallback time.Duration) time.Duration {
 		log.Warnf("%s was set to '%s', but failed to parse to a duration. Falling back to default of %s.", key, value, fallback)
 	}
 	return fallback
+}
+
+// kmsDecryptFunc is a function that can be mocked in tests to
+// avoid making actual calls to AWS.
+var kmsDecryptFunc = func(svc *kms.KMS, input *kms.DecryptInput) (*kms.DecryptOutput, error) {
+	return svc.Decrypt(input)
+}
+
+// getApiKey checks if KMS_KEY_ID is supplied, and if it is, we assume we are dealing with a KMS-encrypted API key.
+// If KMS_KEY_ID is supplied, we must also have a base64 encrypted LIBHONEY_API_KEY.
+func getApiKey() string {
+	if os.Getenv("LIBHONEY_API_KEY") == "" && os.Getenv("KMS_KEY_ID") == "" {
+		log.Error("LIBHONEY_API_KEY is not set. Please set it to your Honeycomb API key.")
+		return ""
+	}
+	kmsKeyId := os.Getenv("KMS_KEY_ID")
+	if kmsKeyId != "" {
+		encryptedApiKey := os.Getenv("LIBHONEY_API_KEY")
+		if encryptedApiKey == "" {
+			log.Errorf("KMS_KEY_ID is set, but LIBHONEY_API_KEY is not set. Set LIBHONEY_API_KEY to your KMS-encrypted Honeycomb API key.")
+			return ""
+		} else {
+			kmsSession := session.Must(session.NewSession(&aws.Config{
+				Region: aws.String(os.Getenv("AWS_REGION")),
+			}))
+
+			config := &aws.Config{}
+			svc := kms.New(kmsSession, config)
+			ciphertext, err := base64.StdEncoding.DecodeString(encryptedApiKey)
+			if err != nil {
+				log.Errorf("unable to decode ciphertext in Honeycomb API key: %v", err)
+				return ""
+			}
+			resp, err := kmsDecryptFunc(svc, &kms.DecryptInput{
+				CiphertextBlob: ciphertext,
+			})
+
+			if err != nil {
+				log.Errorf("Failed to decrypt Honeycomb API key: %v", err)
+			}
+			return string(resp.Plaintext)
+		}
+	} else {
+		APIKey := os.Getenv("LIBHONEY_API_KEY")
+		if APIKey == "" {
+			log.Error("LIBHONEY_API_KEY is not set. Please set it to your Honeycomb API key.")
+		}
+		return APIKey
+	}
+	return ""
 }
