@@ -179,7 +179,6 @@ func Test_GetApiKey(t *testing.T) {
 			envSetup: func(t *testing.T) {
 				t.Setenv("LIBHONEY_API_KEY", encodedApiKey)
 				t.Setenv("KMS_KEY_ID", "some-key-id")
-				t.Setenv("AWS_REGION", "us-east-2")
 			},
 			mockSetup: func(t *testing.T) {
 				kmsDecryptFunc = func(svc *kms.KMS, input *kms.DecryptInput) (*kms.DecryptOutput, error) {
@@ -196,7 +195,6 @@ func Test_GetApiKey(t *testing.T) {
 			envSetup: func(t *testing.T) {
 				t.Setenv("LIBHONEY_API_KEY", "not-valid-base64")
 				t.Setenv("KMS_KEY_ID", "some-key-id")
-				t.Setenv("AWS_REGION", "us-west-2")
 			},
 			expectError: true,
 		},
@@ -205,7 +203,6 @@ func Test_GetApiKey(t *testing.T) {
 			envSetup: func(t *testing.T) {
 				t.Setenv("LIBHONEY_API_KEY", "")
 				t.Setenv("KMS_KEY_ID", "some-key-id")
-				t.Setenv("AWS_REGION", "us-west-2")
 			},
 			expectError: true,
 		},
