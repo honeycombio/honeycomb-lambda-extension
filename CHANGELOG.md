@@ -1,5 +1,15 @@
 # Honeycomb Lambda Extension Changelog
 
+## v11.5.0 - 2025-06-03
+
+### 💡 Enhancements
+
+- feat: add option to use kms encrypted keys by @JamieDanielson in https://github.com/honeycombio/honeycomb-lambda-extension/pull/159
+
+### 🛠 Maintenance
+
+- chore: LICENSES update for new/updated dependencies included in builds by @robbkidd in https://github.com/honeycombio/honeycomb-lambda-extension/pull/160
+
 ## v11.4.0 - 2025-05-02
 
 This release fixes a security vulnerability in Go 1.22.
