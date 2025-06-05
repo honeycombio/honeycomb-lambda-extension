@@ -3,6 +3,7 @@ package eventprocessor
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/honeycombio/honeycomb-lambda-extension/extension"
 	"github.com/honeycombio/libhoney-go"
@@ -90,6 +91,7 @@ func (s *Server) pollEventAndProcess(ctx context.Context, cancel context.CancelF
 			log.WithField("res.ShutdownReason", res.ShutdownReason).Debug("Sending shutdown reason")
 			s.sendShutdownReason(res.ShutdownReason)
 		}
+		time.Sleep(200 * time.Millisecond)
 	default:
 		log.WithField("res", res).Debug("Received unknown event")
 	}
