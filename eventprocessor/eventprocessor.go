@@ -91,7 +91,12 @@ func (s *Server) pollEventAndProcess(ctx context.Context, cancel context.CancelF
 			log.WithField("res.ShutdownReason", res.ShutdownReason).Debug("Sending shutdown reason")
 			s.sendShutdownReason(res.ShutdownReason)
 		}
-		time.Sleep(time.UnixMilli(res.DeadlineMS).Sub(time.Now()) - 100*time.Millisecond)
+		select {
+		case <-time.After(time.Duration(res.DeadlineMS-100) * time.Millisecond):
+			return
+		case <-time.After(500 * time.Millisecond):
+			return
+		}
 	default:
 		log.WithField("res", res).Debug("Received unknown event")
 	}
