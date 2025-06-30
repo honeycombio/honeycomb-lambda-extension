@@ -3,6 +3,7 @@ package eventprocessor
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/honeycombio/honeycomb-lambda-extension/extension"
 	"github.com/honeycombio/libhoney-go"
@@ -89,6 +90,13 @@ func (s *Server) pollEventAndProcess(ctx context.Context, cancel context.CancelF
 		if res.ShutdownReason != extension.ShutdownReasonSpindown && s.lastRequestId != "" {
 			log.WithField("res.ShutdownReason", res.ShutdownReason).Debug("Sending shutdown reason")
 			s.sendShutdownReason(res.ShutdownReason)
+		}
+		// wait for either result's deadline - 100 ms or 500ms, whichever is shorter
+		select {
+		case <-time.After(time.Duration(res.DeadlineMS-100) * time.Millisecond):
+			return
+		case <-time.After(500 * time.Millisecond):
+			return
 		}
 	default:
 		log.WithField("res", res).Debug("Received unknown event")
