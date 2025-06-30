@@ -91,6 +91,7 @@ func (s *Server) pollEventAndProcess(ctx context.Context, cancel context.CancelF
 			log.WithField("res.ShutdownReason", res.ShutdownReason).Debug("Sending shutdown reason")
 			s.sendShutdownReason(res.ShutdownReason)
 		}
+		// wait for either result's deadline - 100 ms or 500ms, whichever is shorter
 		select {
 		case <-time.After(time.Duration(res.DeadlineMS-100) * time.Millisecond):
 			return
