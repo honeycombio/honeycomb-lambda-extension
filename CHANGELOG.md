@@ -1,5 +1,11 @@
 # Honeycomb Lambda Extension Changelog
 
+## v11.5.1 - 2025-06-30
+
+### Fixes
+
+- fix(eventprocessor): delay shutdown to allow lambda app to flush (#162) | @lizthegrey
+
 ## v11.5.0 - 2025-06-03
 
 ### 💡 Enhancements
