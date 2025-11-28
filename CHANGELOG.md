@@ -1,5 +1,13 @@
 # Honeycomb Lambda Extension Changelog
 
+## v11.6.0 - 2025-11-28
+
+This release fixes a security vulnerability in Go 1.24.4.
+
+### Fixes:
+
+- maint: Bump go to 1.25 and some dependencies (#156) | [@Alex Boten](https://github.com/codeboten)
+
 ## v11.5.1 - 2025-06-30
 
 ### Fixes
