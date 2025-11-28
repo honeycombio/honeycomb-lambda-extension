@@ -5,7 +5,7 @@ go 1.24
 require (
 	github.com/honeycombio/libhoney-go v1.25.0
 	github.com/sirupsen/logrus v1.9.3
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.1
 )
 
 require github.com/jmespath/go-jmespath v0.4.0 // indirect
