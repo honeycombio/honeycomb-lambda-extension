@@ -4,7 +4,7 @@ go 1.25
 
 require (
 	github.com/honeycombio/libhoney-go v1.26.0
-	github.com/sirupsen/logrus v1.9.3
+	github.com/sirupsen/logrus v1.9.4
 	github.com/stretchr/testify v1.11.1
 )
 
