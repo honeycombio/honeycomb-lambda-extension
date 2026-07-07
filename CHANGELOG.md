@@ -18,6 +18,11 @@
 
 - fix: register SHUTDOWN-only and migrate to Telemetry API on Lambda Managed Instances (#170) | @lizthegrey
 
+### Maintenance
+
+- maint(deps): bump github.com/honeycombio/libhoney-go from 1.26.0 to 1.27.1 (#169) | @dependabot
+- maint(deps): bump github.com/sirupsen/logrus from 1.9.3 to 1.9.4 (#168) | @dependabot
+
 ## v11.6.0 - 2025-11-28
 
 This release fixes a security vulnerability in Go 1.24.4.
