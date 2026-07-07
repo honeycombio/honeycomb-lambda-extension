@@ -13,7 +13,7 @@ import (
 	"github.com/honeycombio/honeycomb-lambda-extension/eventprocessor"
 	"github.com/honeycombio/honeycomb-lambda-extension/eventpublisher"
 	"github.com/honeycombio/honeycomb-lambda-extension/extension"
-	"github.com/honeycombio/honeycomb-lambda-extension/logsapi"
+	"github.com/honeycombio/honeycomb-lambda-extension/telemetryapi"
 )
 
 var (
@@ -68,8 +68,8 @@ func main() {
 		log.Warn("Could not initialize event publisher", err)
 	}
 
-	// initialize Logs API HTTP server
-	go logsapi.StartLogsReceiver(config.LogsReceiverPort, eventpublisherClient)
+	// initialize Telemetry API HTTP server
+	go telemetryapi.StartTelemetryReceiver(config.LogsReceiverPort, eventpublisherClient)
 
 	// if running in localMode, wait on the context to be cancelled,
 	// then early return main() to end the process
@@ -84,14 +84,14 @@ func main() {
 
 	// register with Extensions API
 	extensionClient := extension.NewClient(config.RuntimeAPI, extensionName)
-	res, err := extensionClient.Register(ctx)
+	res, err := extensionClient.Register(ctx, config.IsManagedInstances)
 	if err != nil {
 		log.Panic("Could not register extension", err)
 	}
 	log.Debug("Response from register: ", res)
 
-	// subscribe to Lambda log streams
-	subscription, err := logsapi.Subscribe(ctx, config, extensionClient.ExtensionID)
+	// subscribe to Lambda telemetry streams
+	subscription, err := telemetryapi.Subscribe(ctx, config, extensionClient.ExtensionID)
 	if err != nil {
 		log.Warn("Could not subscribe to events: ", err)
 	}

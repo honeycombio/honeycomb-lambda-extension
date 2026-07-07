@@ -25,7 +25,7 @@ var (
 	testTracingValue = "Root=1-5f35ae12-0c0fec141ab77a00bc047aa2;Parent=2be948a625588e32;Sampled=1"
 )
 
-func RegisterServer(t *testing.T) *httptest.Server {
+func RegisterServer(t *testing.T, expectedEvents []EventType) *httptest.Server {
 
 	fixtures := []struct {
 		name     string
@@ -70,12 +70,7 @@ func RegisterServer(t *testing.T) *httptest.Server {
 		if !ok {
 			t.Error("Expected result to include events")
 		}
-		if events[0] != Invoke {
-			t.Errorf("Expected invoke, got: %#v", events[0])
-		}
-		if events[1] != Shutdown {
-			t.Errorf("Expected shutdown, got: %#v", events[1])
-		}
+		assert.Equal(t, expectedEvents, events)
 		resp := RegisterResponse{
 			FunctionName:    testFunctionName,
 			FunctionVersion: testFunctionVersion,
@@ -114,12 +109,12 @@ func NextEventServer(t *testing.T, eventType EventType) *httptest.Server {
 }
 
 func TestRegisterExtension(t *testing.T) {
-	server := RegisterServer(t)
+	server := RegisterServer(t, []EventType{Invoke, Shutdown})
 	defer server.Close()
 
 	client := NewClient(server.URL, testName)
 	ctx := context.TODO()
-	resp, err := client.Register(ctx)
+	resp, err := client.Register(ctx, false)
 
 	if err != nil {
 		t.Error(err)
@@ -135,13 +130,29 @@ func TestRegisterExtension(t *testing.T) {
 	assert.Equal(t, testIdentifier, client.ExtensionID)
 }
 
+func TestRegisterExtensionManagedInstances(t *testing.T) {
+	server := RegisterServer(t, []EventType{Shutdown})
+	defer server.Close()
+
+	client := NewClient(server.URL, testName)
+	ctx := context.TODO()
+	resp, err := client.Register(ctx, true)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	assert.Equal(t, testFunctionName, resp.FunctionName)
+}
+
 func TestNextEvent(t *testing.T) {
 	server := NextEventServer(t, Invoke)
 	defer server.Close()
 
 	client := NewClient(server.URL, testName)
 	ctx := context.TODO()
-	if _, err := client.Register(ctx); err != nil {
+	if _, err := client.Register(ctx, false); err != nil {
 		t.Error(err)
 	}
 	res, err := client.NextEvent(ctx)

@@ -92,9 +92,17 @@ func NewClient(baseURL string, extensionName string) *Client {
 // Register registers the extension with the Lambda Extensions API. This happens
 // during Extension Init. Each call must include the list of events in the body
 // and the extension name in the headers.
-func (c *Client) Register(ctx context.Context) (*RegisterResponse, error) {
+//
+// Lambda Managed Instances only allows registering for SHUTDOWN: registering for
+// INVOKE is rejected there, because a single execution environment handles
+// concurrent invocations rather than delivering one INVOKE event per extension.
+func (c *Client) Register(ctx context.Context, managedInstances bool) (*RegisterResponse, error) {
+	events := []EventType{Invoke, Shutdown}
+	if managedInstances {
+		events = []EventType{Shutdown}
+	}
 	reqBody, err := json.Marshal(map[string]interface{}{
-		"events": []EventType{Invoke, Shutdown},
+		"events": events,
 	})
 	if err != nil {
 		return nil, err

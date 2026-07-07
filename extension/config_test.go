@@ -148,6 +148,43 @@ func Test_EnvOrElseDuration(t *testing.T) {
 	}
 }
 
+func Test_IsManagedInstances(t *testing.T) {
+	testCases := []struct {
+		desc          string
+		envValue      string
+		expectedValue bool
+	}{
+		{
+			desc:          "not set",
+			envValue:      "not-set",
+			expectedValue: false,
+		},
+		{
+			desc:          "on-demand",
+			envValue:      "on-demand",
+			expectedValue: false,
+		},
+		{
+			desc:          "provisioned-concurrency",
+			envValue:      "provisioned-concurrency",
+			expectedValue: false,
+		},
+		{
+			desc:          "lambda-managed-instances",
+			envValue:      "lambda-managed-instances",
+			expectedValue: true,
+		},
+	}
+	for _, tC := range testCases {
+		t.Run(tC.desc, func(t *testing.T) {
+			if tC.envValue != "not-set" {
+				t.Setenv("AWS_LAMBDA_INITIALIZATION_TYPE", tC.envValue)
+			}
+			assert.Equal(t, tC.expectedValue, NewConfigFromEnvironment().IsManagedInstances)
+		})
+	}
+}
+
 func Test_GetApiKey(t *testing.T) {
 	originalApiKey := "test-api-key"
 	encodedApiKey := base64.StdEncoding.EncodeToString([]byte(originalApiKey))
