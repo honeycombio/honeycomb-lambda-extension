@@ -54,42 +54,32 @@ func handler(client eventCreator) http.HandlerFunc {
 			return
 		}
 
-		// Iterate through the batch of log messages received. In the case of function
-		// log messages, the Record field of the struct will be a string. That string
-		// may contain string-encoded JSON (e.g. "{\"trace.trace_id\": \"1234\", ...}")
-		// in which case, we will try to parse the JSON into a map[string]interface{}
-		// and then add it to the Honeycomb event. If, for some reason, parsing the JSON
-		// is impossible, then we just add the string as a field "record" in Honeycomb.
-		// This is what will happen if the function emits plain, non-structured strings.
+		// Iterate through the batch of log messages received. A function log
+		// message's Record holds whatever the function wrote to stdout, in one
+		// of two encodings. With plain-text log format (and all Logs API /
+		// pre-2022-12-13 schema deliveries), Record is a string that may itself
+		// contain JSON. With JSON log format, Lambda pre-parses the line:
+		// a line that was already JSON arrives as that object verbatim, and a
+		// non-JSON line arrives wrapped as {timestamp, level, message}.
+		// Normalize all of these into the same structured handling so a span
+		// emitted by libhoney/beeline parses identically regardless of the
+		// function's logging config.
 		for _, msg := range logs {
 			event := client.NewEvent()
 			event.AddField("lambda_extension.type", msg.Type)
 
 			switch record := msg.Record.(type) {
 			case string:
-				// attempt to parse record as json
-				var jsonRecord map[string]interface{}
-				err := json.Unmarshal([]byte(record), &jsonRecord)
-				if err != nil {
-					// not JSON; we'll treat this log entry as a timestamped string
-					event.Timestamp = parseMessageTimestamp(event, msg)
-					event.AddField("record", msg.Record)
+				addRecordString(event, msg, record)
+			case map[string]interface{}:
+				if inner, ok := record["message"].(string); ok && record["data"] == nil {
+					// JSON-log-format wrapper around a non-JSON line; unwrap and
+					// handle the original line as if it had arrived unwrapped.
+					addRecordString(event, msg, inner)
 				} else {
-					// we've got JSON
-					event.Timestamp = parseFunctionTimestamp(msg, jsonRecord)
-					switch data := jsonRecord["data"].(type) {
-					case map[string]interface{}:
-						// data key contains a map, likely emitted by a Beeline's libhoney, so add the fields from it
-						event.Add(data)
-					default:
-						// data is not a map, so treat the record as flat JSON adding all keys as fields
-						event.Add(jsonRecord)
-					}
-					event.SampleRate = parseSampleRate(jsonRecord)
+					addRecordJSON(event, msg, record)
 				}
 			default:
-				// In the case of platform.start and platform.report messages, msg.Record
-				// will be a map[string]interface{}.
 				event.Timestamp = parseMessageTimestamp(event, msg)
 				event.Add(msg.Record)
 			}
@@ -98,6 +88,33 @@ func handler(client eventCreator) http.HandlerFunc {
 			log.Debug("handler - event enqueued")
 		}
 	}
+}
+
+// addRecordString populates event from a raw log line, parsing it as JSON when
+// possible and falling back to a timestamped "record" string field.
+func addRecordString(event *libhoney.Event, msg LogMessage, record string) {
+	var jsonRecord map[string]interface{}
+	if err := json.Unmarshal([]byte(record), &jsonRecord); err != nil {
+		event.Timestamp = parseMessageTimestamp(event, msg)
+		event.AddField("record", record)
+		return
+	}
+	addRecordJSON(event, msg, jsonRecord)
+}
+
+// addRecordJSON populates event from a structured record: fields come from the
+// libhoney envelope's data map when present, otherwise from the record itself.
+func addRecordJSON(event *libhoney.Event, msg LogMessage, jsonRecord map[string]interface{}) {
+	event.Timestamp = parseFunctionTimestamp(msg, jsonRecord)
+	switch data := jsonRecord["data"].(type) {
+	case map[string]interface{}:
+		// data key contains a map, likely emitted by a Beeline's libhoney, so add the fields from it
+		event.Add(data)
+	default:
+		// data is not a map, so treat the record as flat JSON adding all keys as fields
+		event.Add(jsonRecord)
+	}
+	event.SampleRate = parseSampleRate(jsonRecord)
 }
 
 // parseMessageTimestamp is a helper function that tries to parse the timestamp from the

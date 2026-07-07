@@ -270,3 +270,60 @@ func TestLibhoneyEventWithSampleRate(t *testing.T) {
 		assert.EqualValues(t, 1, event.SampleRate)
 	})
 }
+
+// Shapes delivered by the Telemetry API when the function's log format is
+// JSON (schema 2022-12-13+, always the case on Lambda Managed Instances):
+// a stdout line that was already JSON arrives pre-parsed as an object.
+func TestJSONFormatRecordObjects(t *testing.T) {
+	t.Run("beeline envelope arrives as pre-parsed object", func(t *testing.T) {
+		events := postMessages(t, []LogMessage{{
+			Time: epochTimestamp,
+			Type: "function",
+			Record: map[string]interface{}{
+				"time":       christmasTimestamp,
+				"dataset":    "retriever-traces",
+				"samplerate": float64(5),
+				"data": map[string]interface{}{
+					"name":           "QueryKiller.Tick",
+					"trace.trace_id": "97cac7afa949e6e0ccf399e11509c275",
+					"duration_ms":    0.019234,
+				},
+			},
+		}})
+		event := events[0]
+		assert.Equal(t, "QueryKiller.Tick", event.Data["name"])
+		assert.Equal(t, "97cac7afa949e6e0ccf399e11509c275", event.Data["trace.trace_id"])
+		assert.NotContains(t, event.Data, "data", "envelope must be unwrapped, not double-encoded")
+		ts, _ := time.Parse(time.RFC3339, christmasTimestamp)
+		assert.Equal(t, ts.String(), event.Timestamp.String())
+		assert.EqualValues(t, 5, event.SampleRate)
+	})
+
+	t.Run("non-JSON line arrives wrapped in timestamp/level/message", func(t *testing.T) {
+		events := postMessages(t, []LogMessage{{
+			Time: "2020-11-03T21:10:25.150Z",
+			Type: "function",
+			Record: map[string]interface{}{
+				"timestamp": "2020-11-03T21:10:25.150Z",
+				"level":     "INFO",
+				"message":   "A basic message to STDOUT",
+			},
+		}})
+		event := events[0]
+		assert.Equal(t, "A basic message to STDOUT", event.Data["record"])
+	})
+
+	t.Run("wrapped message containing JSON is unwrapped and parsed", func(t *testing.T) {
+		events := postMessages(t, []LogMessage{{
+			Time: epochTimestamp,
+			Type: "function",
+			Record: map[string]interface{}{
+				"timestamp": christmasTimestamp,
+				"level":     "INFO",
+				"message":   `{"time": "2020-12-25T12:34:56.789Z", "samplerate": 1, "data": {"foo": "bar"}}`,
+			},
+		}})
+		event := events[0]
+		assert.Equal(t, "bar", event.Data["foo"])
+	})
+}
