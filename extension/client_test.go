@@ -88,6 +88,10 @@ func RegisterServer(t *testing.T, expectedEvents []EventType) *httptest.Server {
 }
 
 func NextEventServer(t *testing.T, eventType EventType) *httptest.Server {
+	return NextEventServerWithShutdownReason(t, eventType, "")
+}
+
+func NextEventServerWithShutdownReason(t *testing.T, eventType EventType, shutdownReason ShutdownReason) *httptest.Server {
 	handlerFunc := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		resp := NextEventResponse{
 			EventType:          eventType,
@@ -98,6 +102,7 @@ func NextEventServer(t *testing.T, eventType EventType) *httptest.Server {
 				Type:  testTracingType,
 				Value: testTracingValue,
 			},
+			ShutdownReason: shutdownReason,
 		}
 		b, err := json.Marshal(resp)
 		if err != nil {
@@ -161,6 +166,38 @@ func TestNextEvent(t *testing.T) {
 	}
 	assert.Equal(t, Invoke, res.EventType)
 	assert.Equal(t, "X-Amzn-Trace-Id", res.Tracing.Type)
+}
+
+func TestNextEventShutdown(t *testing.T) {
+	testCases := []struct {
+		desc           string
+		shutdownReason ShutdownReason
+	}{
+		{desc: "spindown", shutdownReason: ShutdownReasonSpindown},
+		{desc: "timeout", shutdownReason: ShutdownReasonTimeout},
+		{desc: "failure", shutdownReason: ShutdownReasonFailure},
+	}
+	for _, tC := range testCases {
+		t.Run(tC.desc, func(t *testing.T) {
+			// Registering SHUTDOWN-only, as happens on Lambda Managed Instances, must
+			// still deliver a well-formed SHUTDOWN event via NextEvent.
+			server := NextEventServerWithShutdownReason(t, Shutdown, tC.shutdownReason)
+			defer server.Close()
+
+			client := NewClient(server.URL, testName)
+			ctx := context.TODO()
+			if _, err := client.Register(ctx, true); err != nil {
+				t.Error(err)
+			}
+			res, err := client.NextEvent(ctx)
+			if err != nil {
+				t.Error(err)
+			}
+			assert.Equal(t, Shutdown, res.EventType)
+			assert.Equal(t, tC.shutdownReason, res.ShutdownReason)
+			assert.Equal(t, int64(testDeadlineMS), res.DeadlineMS)
+		})
+	}
 }
 
 func TestURL(t *testing.T) {
