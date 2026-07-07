@@ -13,6 +13,7 @@
 ### ✨ New support
 
 - AWS Lambda Managed Instances (LMI). Fixes a crash (`FunctionError.ExtensionInitError`) that made this extension unusable on LMI: LMI only allows extensions to register for the `SHUTDOWN` event (not `INVOKE`, since one execution environment handles concurrent invocations), and the extension previously treated that registration rejection as fatal. Detected automatically via `AWS_LAMBDA_INITIALIZATION_TYPE`; no configuration needed.
+- New publishing regions. The layer is now published to ap-south-2, and arm64 layers are now published to ap-southeast-4, eu-central-2, eu-south-2, and me-central-1 (previously x86_64-only).
 - JSON log format. Functions configured with `LoggingConfig.LogFormat: JSON` (the default on new LMI functions) now have their structured telemetry parsed correctly. The Telemetry API delivers already-JSON stdout lines as pre-parsed objects and wraps plain-text lines in a `{timestamp, level, message}` envelope; previously both shapes were uploaded as a single double-encoded field with no queryable columns. No log-format changes are required in either direction — plain-text and JSON formats both work.
 
 ### Fixes
