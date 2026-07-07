@@ -13,9 +13,11 @@
 ### ✨ New support
 
 - AWS Lambda Managed Instances (LMI). Fixes a crash (`FunctionError.ExtensionInitError`) that made this extension unusable on LMI: LMI only allows extensions to register for the `SHUTDOWN` event (not `INVOKE`, since one execution environment handles concurrent invocations), and the extension previously treated that registration rejection as fatal. Detected automatically via `AWS_LAMBDA_INITIALIZATION_TYPE`; no configuration needed.
+- JSON log format. Functions configured with `LoggingConfig.LogFormat: JSON` (the default on new LMI functions) now have their structured telemetry parsed correctly. The Telemetry API delivers already-JSON stdout lines as pre-parsed objects and wraps plain-text lines in a `{timestamp, level, message}` envelope; previously both shapes were uploaded as a single double-encoded field with no queryable columns. No log-format changes are required in either direction — plain-text and JSON formats both work.
 
 ### Fixes
 
+- fix: parse pre-parsed JSON records from the Telemetry API (#173) | @lizthegrey
 - fix: register SHUTDOWN-only and migrate to Telemetry API on Lambda Managed Instances (#170) | @lizthegrey
 
 ### Maintenance
