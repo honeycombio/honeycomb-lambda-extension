@@ -1,6 +1,6 @@
 # Honeycomb Lambda Extension Changelog
 
-## v12.0.0 - TBD
+## v12.0.0 - 2026-07-07
 
 **This is a breaking release.** It adds support for a new AWS deployment model (Lambda Managed Instances) by replacing this extension's telemetry transport outright — every function using this extension, not just ones adopting the new deployment model, now delivers logs via a different API than before. If you deploy this layer, read the breaking changes below before rolling out past a canary.
 
