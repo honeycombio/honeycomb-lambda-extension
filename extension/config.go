@@ -25,14 +25,22 @@ const (
 	// It's very generous to expect an HTTP connection to
 	// to be established in this time.
 	defaultConnectTimeout = time.Second * 3
+
+	// AWS_LAMBDA_INITIALIZATION_TYPE is "lambda-managed-instances" on LMI, vs.
+	// "on-demand"/"provisioned-concurrency"/"snap-start" for Lambda (default).
+	initializationTypeManagedInstances = "lambda-managed-instances"
 )
 
 type Config struct {
-	APIKey                         string // Honeycomb API key
-	Dataset                        string // target dataset at Honeycomb to receive events
-	APIHost                        string // Honeycomb API URL to which to send events
-	Debug                          bool   // Enable debug log output from the extension
-	RuntimeAPI                     string // Set by AWS in extension environment. Expected to be hostname:port.
+	APIKey     string // Honeycomb API key
+	Dataset    string // target dataset at Honeycomb to receive events
+	APIHost    string // Honeycomb API URL to which to send events
+	Debug      bool   // Enable debug log output from the extension
+	RuntimeAPI string // Set by AWS in extension environment. Expected to be hostname:port.
+	// IsManagedInstances is true on Lambda Managed Instances, which only allows
+	// extensions to register for the SHUTDOWN event (not INVOKE) because a single
+	// execution environment handles concurrent invocations.
+	IsManagedInstances             bool
 	LogsReceiverPort               int
 	LogsAPITimeoutMS               int
 	LogsAPIMaxBytes                int
@@ -58,6 +66,7 @@ func NewConfigFromEnvironment() Config {
 		APIHost:                        os.Getenv("LIBHONEY_API_HOST"),
 		Debug:                          envOrElseBool("HONEYCOMB_DEBUG", false),
 		RuntimeAPI:                     os.Getenv("AWS_LAMBDA_RUNTIME_API"),
+		IsManagedInstances:             os.Getenv("AWS_LAMBDA_INITIALIZATION_TYPE") == initializationTypeManagedInstances,
 		LogsReceiverPort:               3000, // a constant for now
 		LogsAPITimeoutMS:               envOrElseInt("LOGS_API_TIMEOUT_MS", defaultTimeoutMS),
 		LogsAPIMaxBytes:                envOrElseInt("LOGS_API_MAX_BYTES", defaultMaxBytes),

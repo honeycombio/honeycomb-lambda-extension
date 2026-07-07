@@ -1,4 +1,4 @@
-package logsapi
+package telemetryapi
 
 import (
 	"encoding/json"
@@ -12,7 +12,7 @@ import (
 	logrus "github.com/sirupsen/logrus"
 )
 
-// LogMessage is a message sent from the Logs API
+// LogMessage is an Event record sent from the Telemetry API
 type LogMessage struct {
 	Type   string      `json:"type"`
 	Time   string      `json:"time"`
@@ -26,11 +26,11 @@ type eventCreator interface {
 var (
 	// set up logging defaults for our own logging output
 	log = logrus.WithFields(logrus.Fields{
-		"source": "hny-lambda-ext-logsapi",
+		"source": "hny-lambda-ext-telemetryapi",
 	})
 )
 
-// handler receives batches of log messages from the Lambda Logs API. Each
+// handler receives batches of log messages from the Lambda Telemetry API. Each
 // LogMessage is sent to Honeycomb as a separate event.
 func handler(client eventCreator) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -42,7 +42,7 @@ func handler(client eventCreator) http.HandlerFunc {
 		}
 		defer r.Body.Close()
 
-		// The Logs API will send batches of events as an array of JSON objects.
+		// The Telemetry API will send batches of events as an array of JSON objects.
 		// Each object will have time, type and record as the top-level keys. If
 		// the log message is a function message, the record element will contain
 		// whatever was emitted by the function to stdout. This could be a structured
@@ -170,7 +170,7 @@ func parseFunctionTimestamp(msg LogMessage, body map[string]interface{}) time.Ti
 		}
 	}
 
-	// parse the logs API event time in case we need it. If it's invalid, just take the time now.
+	// parse the telemetry event time in case we need it. If it's invalid, just take the time now.
 	messageTime, err := time.Parse(time.RFC3339, msg.Time)
 	if err != nil {
 		log.Debug("Unable to parse message's Time, defaulting to Now()")
@@ -202,25 +202,25 @@ func parseFunctionTimestamp(msg LogMessage, body map[string]interface{}) time.Ti
 	return messageTime
 }
 
-// StartLogsReceiver starts a small HTTP server on the specified port.
-// The server receives log messages in AWS Lambda's [Logs API message format]
+// StartTelemetryReceiver starts a small HTTP server on the specified port.
+// The server receives log messages in AWS Lambda's [Telemetry API message format]
 // (JSON array of messages) and the handler will send them to Honeycomb
 // as events with the eventCreator provided as client.
 //
-// When running in Lambda, the extension's subscription to log types will
-// result in the Lambda Logs API publishing log messages to this receiver.
+// When running in Lambda, the extension's subscription to telemetry types will
+// result in the Lambda Telemetry API publishing log messages to this receiver.
 //
 // When running in localMode, the server will be started for manual posting of
 // log messages to the specified port for testing.
 //
-// [Logs API message format]: https://docs.aws.amazon.com/lambda/latest/dg/runtimes-logs-api.html#runtimes-logs-api-msg
-func StartLogsReceiver(port int, client eventCreator) {
+// [Telemetry API message format]: https://docs.aws.amazon.com/lambda/latest/dg/telemetry-api.html#telemetry-api-messages
+func StartTelemetryReceiver(port int, client eventCreator) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", handler(client))
 	server := &http.Server{
 		Addr:    fmt.Sprintf("0.0.0.0:%d", port),
 		Handler: mux,
 	}
-	log.Info("Logs server listening on port ", port)
+	log.Info("Telemetry server listening on port ", port)
 	log.Fatal(server.ListenAndServe())
 }

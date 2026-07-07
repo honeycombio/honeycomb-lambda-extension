@@ -1,4 +1,4 @@
-package logsapi
+package telemetryapi
 
 import (
 	"bytes"

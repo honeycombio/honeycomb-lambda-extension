@@ -1,4 +1,4 @@
-package logsapi
+package telemetryapi
 
 import (
 	"bytes"
@@ -14,17 +14,17 @@ import (
 	"github.com/honeycombio/honeycomb-lambda-extension/extension"
 )
 
-// Protocol represents the protocol that this extension should receive logs by
+// Protocol represents the protocol that this extension should receive telemetry by
 type Protocol string
 
-// LogType represents the types of log messages that are supported by the logs API
+// LogType represents the types of telemetry records that are supported by the Telemetry API
 type LogType string
 
 const (
 	// Local hostname according to process running in extension env
 	localHostname = "sandbox"
 
-	// HTTPProtocol is the protocol that we receive logs over
+	// HTTPProtocol is the protocol that we receive telemetry over
 	HTTPProtocol Protocol = "HTTP"
 
 	// PlatformLog events originate from the Lambda Runtime
@@ -34,9 +34,14 @@ const (
 
 	// extensionIdentifierHeader is used to pass a generated UUID to calls to the API
 	extensionIdentifierHeader = "Lambda-Extension-Identifier"
+
+	// schemaVersion is required on Lambda Managed Instances (the only version it
+	// accepts) and is documented by AWS as backward-compatible with Lambda
+	// (default), so it's used unconditionally rather than branching by environment.
+	schemaVersion = "2025-01-29"
 )
 
-// Destination is where the runtime should send logs to
+// Destination is where the runtime should send telemetry to
 type Destination struct {
 	Protocol Protocol `json:"protocol"`
 	URI      string   `json:"URI"`
@@ -49,7 +54,7 @@ type BufferingOptions struct {
 	MaxItems  uint64 `json:"maxItems"`
 }
 
-// Client is used to communicate with the Logs API
+// Client is used to communicate with the Telemetry API
 type Client struct {
 	baseURL          string
 	httpClient       *http.Client
@@ -58,23 +63,23 @@ type Client struct {
 	ExtensionID      string
 }
 
-// SubscribeRequest is the request to /logs
+// SubscribeRequest is the request to /telemetry
 type SubscribeRequest struct {
-	Dest      Destination      `json:"destination"`
-	Types     []LogType        `json:"types"`
-	Buffering BufferingOptions `json:"buffering"`
+	SchemaVersion string           `json:"schemaVersion"`
+	Dest          Destination      `json:"destination"`
+	Types         []LogType        `json:"types"`
+	Buffering     BufferingOptions `json:"buffering"`
 }
 
-// SubscribeResponse is the response from /logs subscribe message
+// SubscribeResponse is the response from a /telemetry subscribe message
 type SubscribeResponse struct {
 	Message string
 }
 
-// Subscribe wraps the logic of creating a client for the AWS Lambda Logs API
-// and using the client to subscribe the extension to the configured log type streams.
+// Subscribe wraps the logic of creating a client for the AWS Lambda Telemetry API
+// and using the client to subscribe the extension to the configured telemetry streams.
 func Subscribe(ctx context.Context, config extension.Config, extensionID string) (*SubscribeResponse, error) {
-	// create logs api client
-	logsClient := newClient(config.RuntimeAPI, config.LogsReceiverPort, BufferingOptions{
+	telemetryClient := newClient(config.RuntimeAPI, config.LogsReceiverPort, BufferingOptions{
 		TimeoutMS: uint(config.LogsAPITimeoutMS),
 		MaxBytes:  uint64(config.LogsAPIMaxBytes),
 		MaxItems:  uint64(config.LogsAPIMaxItems),
@@ -89,15 +94,15 @@ func Subscribe(ctx context.Context, config extension.Config, extensionID string)
 		logTypes = []LogType{PlatformLog, FunctionLog}
 	}
 
-	return logsClient.subscribeToLogTypes(ctx, extensionID, logTypes)
+	return telemetryClient.subscribeToTelemetryTypes(ctx, extensionID, logTypes)
 }
 
-// newClient returns a new Lambda Logs API client
+// newClient returns a new Lambda Telemetry API client
 func newClient(baseURL string, port int, bufferingOpts BufferingOptions) *Client {
 	if !strings.HasPrefix(baseURL, "http") {
 		baseURL = fmt.Sprintf("http://%s", baseURL)
 	}
-	baseURL = fmt.Sprintf("%s/2020-08-15", baseURL)
+	baseURL = fmt.Sprintf("%s/2022-07-01", baseURL)
 	return &Client{
 		baseURL:          baseURL,
 		httpClient:       &http.Client{},
@@ -106,10 +111,11 @@ func newClient(baseURL string, port int, bufferingOpts BufferingOptions) *Client
 	}
 }
 
-// subscribeToLogTypes will subscribe to event streams sent
-// from the Logs API of the given log types.
-func (c *Client) subscribeToLogTypes(ctx context.Context, extensionID string, types []LogType) (*SubscribeResponse, error) {
+// subscribeToTelemetryTypes will subscribe to event streams sent
+// from the Telemetry API of the given telemetry types.
+func (c *Client) subscribeToTelemetryTypes(ctx context.Context, extensionID string, types []LogType) (*SubscribeResponse, error) {
 	subscribe := SubscribeRequest{
+		SchemaVersion: schemaVersion,
 		Dest: Destination{
 			Protocol: HTTPProtocol,
 			URI:      fmt.Sprintf("http://%s:%d", localHostname, c.destinationPort),
@@ -121,7 +127,7 @@ func (c *Client) subscribeToLogTypes(ctx context.Context, extensionID string, ty
 	if err != nil {
 		return nil, err
 	}
-	httpReq, err := http.NewRequestWithContext(ctx, "PUT", c.url("/logs"), bytes.NewBuffer(reqBody))
+	httpReq, err := http.NewRequestWithContext(ctx, "PUT", c.url("/telemetry"), bytes.NewBuffer(reqBody))
 	if err != nil {
 		return nil, err
 	}

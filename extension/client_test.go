@@ -25,7 +25,7 @@ var (
 	testTracingValue = "Root=1-5f35ae12-0c0fec141ab77a00bc047aa2;Parent=2be948a625588e32;Sampled=1"
 )
 
-func RegisterServer(t *testing.T) *httptest.Server {
+func RegisterServer(t *testing.T, expectedEvents []EventType) *httptest.Server {
 
 	fixtures := []struct {
 		name     string
@@ -70,12 +70,7 @@ func RegisterServer(t *testing.T) *httptest.Server {
 		if !ok {
 			t.Error("Expected result to include events")
 		}
-		if events[0] != Invoke {
-			t.Errorf("Expected invoke, got: %#v", events[0])
-		}
-		if events[1] != Shutdown {
-			t.Errorf("Expected shutdown, got: %#v", events[1])
-		}
+		assert.Equal(t, expectedEvents, events)
 		resp := RegisterResponse{
 			FunctionName:    testFunctionName,
 			FunctionVersion: testFunctionVersion,
@@ -93,6 +88,10 @@ func RegisterServer(t *testing.T) *httptest.Server {
 }
 
 func NextEventServer(t *testing.T, eventType EventType) *httptest.Server {
+	return NextEventServerWithShutdownReason(t, eventType, "")
+}
+
+func NextEventServerWithShutdownReason(t *testing.T, eventType EventType, shutdownReason ShutdownReason) *httptest.Server {
 	handlerFunc := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		resp := NextEventResponse{
 			EventType:          eventType,
@@ -103,6 +102,7 @@ func NextEventServer(t *testing.T, eventType EventType) *httptest.Server {
 				Type:  testTracingType,
 				Value: testTracingValue,
 			},
+			ShutdownReason: shutdownReason,
 		}
 		b, err := json.Marshal(resp)
 		if err != nil {
@@ -114,12 +114,12 @@ func NextEventServer(t *testing.T, eventType EventType) *httptest.Server {
 }
 
 func TestRegisterExtension(t *testing.T) {
-	server := RegisterServer(t)
+	server := RegisterServer(t, []EventType{Invoke, Shutdown})
 	defer server.Close()
 
 	client := NewClient(server.URL, testName)
 	ctx := context.TODO()
-	resp, err := client.Register(ctx)
+	resp, err := client.Register(ctx, false)
 
 	if err != nil {
 		t.Error(err)
@@ -135,13 +135,29 @@ func TestRegisterExtension(t *testing.T) {
 	assert.Equal(t, testIdentifier, client.ExtensionID)
 }
 
+func TestRegisterExtensionManagedInstances(t *testing.T) {
+	server := RegisterServer(t, []EventType{Shutdown})
+	defer server.Close()
+
+	client := NewClient(server.URL, testName)
+	ctx := context.TODO()
+	resp, err := client.Register(ctx, true)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	assert.Equal(t, testFunctionName, resp.FunctionName)
+}
+
 func TestNextEvent(t *testing.T) {
 	server := NextEventServer(t, Invoke)
 	defer server.Close()
 
 	client := NewClient(server.URL, testName)
 	ctx := context.TODO()
-	if _, err := client.Register(ctx); err != nil {
+	if _, err := client.Register(ctx, false); err != nil {
 		t.Error(err)
 	}
 	res, err := client.NextEvent(ctx)
@@ -150,6 +166,38 @@ func TestNextEvent(t *testing.T) {
 	}
 	assert.Equal(t, Invoke, res.EventType)
 	assert.Equal(t, "X-Amzn-Trace-Id", res.Tracing.Type)
+}
+
+func TestNextEventShutdown(t *testing.T) {
+	testCases := []struct {
+		desc           string
+		shutdownReason ShutdownReason
+	}{
+		{desc: "spindown", shutdownReason: ShutdownReasonSpindown},
+		{desc: "timeout", shutdownReason: ShutdownReasonTimeout},
+		{desc: "failure", shutdownReason: ShutdownReasonFailure},
+	}
+	for _, tC := range testCases {
+		t.Run(tC.desc, func(t *testing.T) {
+			// Registering SHUTDOWN-only, as happens on Lambda Managed Instances, must
+			// still deliver a well-formed SHUTDOWN event via NextEvent.
+			server := NextEventServerWithShutdownReason(t, Shutdown, tC.shutdownReason)
+			defer server.Close()
+
+			client := NewClient(server.URL, testName)
+			ctx := context.TODO()
+			if _, err := client.Register(ctx, true); err != nil {
+				t.Error(err)
+			}
+			res, err := client.NextEvent(ctx)
+			if err != nil {
+				t.Error(err)
+			}
+			assert.Equal(t, Shutdown, res.EventType)
+			assert.Equal(t, tC.shutdownReason, res.ShutdownReason)
+			assert.Equal(t, int64(testDeadlineMS), res.DeadlineMS)
+		})
+	}
 }
 
 func TestURL(t *testing.T) {
