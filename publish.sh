@@ -23,6 +23,11 @@ EXTENSION_NAME="honeycomb-lambda-extension"
 # Regions absent here (il-central-1, ca-west-1, mx-central-1, ap-east-2,
 # ap-southeast-5/6/7) are not opted in on the publishing account.
 #
+# me-central-1 and me-south-1 are enabled on the account but excluded: regional
+# connectivity is unreliable (2026-07: the v12.0.0 publish job hung on
+# me-central-1 until CircleCI killed it). Publishing there is manual until the
+# regions are dependable again; re-add them here when they are.
+#
 # regions with x86_64 only support
 REGIONS_NO_ARM=(
 )
@@ -48,8 +53,6 @@ REGIONS_WITH_ARM=(
     eu-west-1
     eu-west-2
     eu-west-3
-    me-central-1
-    me-south-1
     sa-east-1
     us-east-1
     us-east-2
