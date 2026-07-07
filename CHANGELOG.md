@@ -1,5 +1,23 @@
 # Honeycomb Lambda Extension Changelog
 
+## v12.0.0 - TBD
+
+**This is a breaking release.** It adds support for a new AWS deployment model (Lambda Managed Instances) by replacing this extension's telemetry transport outright — every function using this extension, not just ones adopting the new deployment model, now delivers logs via a different API than before. If you deploy this layer, read the breaking changes below before rolling out past a canary.
+
+### 🚨 Breaking Changes
+
+- Logs API → Telemetry API. The extension no longer subscribes via the Lambda Logs API (`2020-08-15/logs`); it now uses the Telemetry API (`2022-07-01/telemetry`, `schemaVersion: 2025-01-29`) for all deployments, classic Lambda included, not just Lambda Managed Instances. AWS documents this schema version as backward-compatible with classic Lambda, but if your account/region doesn't yet support it, telemetry delivery will silently stop — the extension itself keeps running and reports healthy; there's no crash to alert on. Canary-test an actual invoke and confirm events still reach Honeycomb before rolling this out broadly.
+- Go API: the `logsapi` package is renamed to `telemetryapi`. If you import this module directly (rather than consuming the prebuilt layer), update your import paths. `extension.Client.Register()` also gained a required `managedInstances bool` parameter — existing callers must update their call sites.
+- Environment variable names (`LOGS_API_TIMEOUT_MS`, `LOGS_API_MAX_BYTES`, `LOGS_API_MAX_ITEMS`, `LOGS_API_DISABLE_PLATFORM_MSGS`) are unchanged — no Terraform/config changes needed on that front.
+
+### ✨ New support
+
+- AWS Lambda Managed Instances (LMI). Fixes a crash (`FunctionError.ExtensionInitError`) that made this extension unusable on LMI: LMI only allows extensions to register for the `SHUTDOWN` event (not `INVOKE`, since one execution environment handles concurrent invocations), and the extension previously treated that registration rejection as fatal. Detected automatically via `AWS_LAMBDA_INITIALIZATION_TYPE`; no configuration needed.
+
+### Fixes
+
+- fix: register SHUTDOWN-only and migrate to Telemetry API on Lambda Managed Instances (#170) | @lizthegrey
+
 ## v11.6.0 - 2025-11-28
 
 This release fixes a security vulnerability in Go 1.24.4.
