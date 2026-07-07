@@ -17,15 +17,14 @@ VERSION=$(echo ${VERSION} | tr '.' '-')
 
 EXTENSION_NAME="honeycomb-lambda-extension"
 
-# Region list update from AWS Lambda pricing page as of 2023/02/27
-# Commented out lines are listed on available but require opt-in before we can publish to it.
+# Region list verified against the publishing account 2026/07/07: every region
+# the account has enabled (ec2 describe-regions) now supports arm64 Lambda
+# (probed per region with list-layer-versions --compatible-architecture arm64).
+# Regions absent here (il-central-1, ca-west-1, mx-central-1, ap-east-2,
+# ap-southeast-5/6/7) are not opted in on the publishing account.
 #
 # regions with x86_64 only support
 REGIONS_NO_ARM=(
-    ap-southeast-4
-    eu-central-2
-    eu-south-2
-    me-central-1
 )
 # Regions with x86_64 & arm64
 REGIONS_WITH_ARM=(
@@ -35,16 +34,21 @@ REGIONS_WITH_ARM=(
     ap-northeast-2
     ap-northeast-3
     ap-south-1
+    ap-south-2
     ap-southeast-1
     ap-southeast-2
     ap-southeast-3
+    ap-southeast-4
     ca-central-1
     eu-central-1
+    eu-central-2
     eu-north-1
     eu-south-1
+    eu-south-2
     eu-west-1
     eu-west-2
     eu-west-3
+    me-central-1
     me-south-1
     sa-east-1
     us-east-1
