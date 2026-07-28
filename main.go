@@ -69,7 +69,7 @@ func main() {
 	}
 
 	// initialize Telemetry API HTTP server
-	go telemetryapi.StartTelemetryReceiver(config.LogsReceiverPort, eventpublisherClient)
+	go telemetryapi.StartTelemetryReceiver(config, eventpublisherClient)
 
 	// if running in localMode, wait on the context to be cancelled,
 	// then early return main() to end the process
