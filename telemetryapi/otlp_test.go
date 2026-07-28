@@ -159,3 +159,37 @@ func TestNonOTLPRecordsAreUnaffected(t *testing.T) {
 		})
 	}
 }
+
+// libhoney panics if handed a nil value to Add, so record shapes that decode to
+// nothing useful have to be handled before they reach it. A panic here would
+// cost the rest of the batch, since net/http only recovers at the request.
+func TestUnusualRecordShapesDoNotPanic(t *testing.T) {
+	testCases := []struct {
+		name string
+		body string
+	}{
+		{"record is null", `[{"time":"2025-07-20T08:26:40.000Z","type":"function","record":null}]`},
+		{"record is absent", `[{"time":"2025-07-20T08:26:40.000Z","type":"function"}]`},
+		{"record is a number", `[{"time":"2025-07-20T08:26:40.000Z","type":"function","record":42}]`},
+		{"record is an array", `[{"time":"2025-07-20T08:26:40.000Z","type":"function","record":["a"]}]`},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			events := postBody(t, tc.body, otlpConfig)
+			require.Len(t, events, 1, "the message should still reach Honeycomb")
+			assert.Equal(t, "function", events[0].Data["lambda_extension.type"])
+		})
+	}
+}
+
+// A panic in one message must not take the rest of the batch with it.
+func TestUnusualRecordDoesNotLoseTheRestOfTheBatch(t *testing.T) {
+	events := postBody(t, `[
+		{"time":"2025-07-20T08:26:40.000Z","type":"function","record":null},
+		{"time":"2025-07-20T08:26:40.000Z","type":"function","record":"a real log line"}
+	]`, otlpConfig)
+
+	require.Len(t, events, 2)
+	assert.Equal(t, "a real log line", events[1].Data["record"])
+}

@@ -74,10 +74,14 @@ func handler(client eventCreator, config extension.Config) http.HandlerFunc {
 		// emitted by libhoney/beeline parses identically regardless of the
 		// function's logging config.
 		for _, msg := range logs {
+			// A record that is absent or null leaves record nil, and the message
+			// still reaches Honeycomb carrying its type and timestamp.
 			var record interface{}
-			if err := json.Unmarshal(msg.Record, &record); err != nil {
-				log.Warn("Could not unmarshal record", err)
-				continue
+			if len(msg.Record) > 0 {
+				if err := json.Unmarshal(msg.Record, &record); err != nil {
+					log.Warn("Could not unmarshal record", err)
+					continue
+				}
 			}
 
 			line, isLine := recordLine(record)
@@ -96,7 +100,9 @@ func handler(client eventCreator, config extension.Config) http.HandlerFunc {
 				addRecordJSON(event, msg, fields)
 			} else {
 				event.Timestamp = parseMessageTimestamp(event, msg)
-				event.Add(record)
+				if record != nil {
+					event.Add(record)
+				}
 			}
 			sendEvent(event)
 		}
