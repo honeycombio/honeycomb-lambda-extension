@@ -8,6 +8,10 @@ function to Honeycomb by just writing JSON to stdout. The Honeycomb Lambda
 Extension will receive the messages your function sends to stdout and forward
 them to Honeycomb as events.
 
+Functions instrumented with OpenTelemetry can write OTLP/JSON to stdout instead,
+and the extension will forward that too, with no collector to run alongside your
+function. See [Sending OpenTelemetry](#sending-opentelemetry).
+
 The extension will also send platform events such as invocation start and
 shutdown events.
 
@@ -62,6 +66,45 @@ The extension is configurable via environment variables set for your lambda func
   Default: 3s (3 seconds).
   Value should be given in a format parseable as a duration, such as "1m", "15s", or "750ms".
   There are other valid time units ("ns", "us"/"µs", "h"), but their use does not fit a timeout for HTTP connections made in the AWS Lambda compute environment.
+
+### Sending OpenTelemetry
+
+If your function is instrumented with OpenTelemetry, you can point the SDK's
+exporter at stdout instead of running a collector alongside your function. The
+extension recognizes OTLP/JSON on stdout and forwards it, so there is no
+collector process, no sidecar to connect to, and no gRPC endpoint to wait for
+during a cold start.
+
+Configure your SDK with an exporter that writes **OTLP/JSON**, which looks like
+this on the wire:
+
+```json
+{"resourceSpans":[{"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"my-func"}}]},"scopeSpans":[{"spans":[{"traceId":"5b8efff798038103d269b633813fc60c","spanId":"eee19b7ec3c1b174","name":"handler","kind":2,"startTimeUnixNano":"1753000000000000000","endTimeUnixNano":"1753000000123000000"}]}]}]}
+```
+
+Traces (`resourceSpans`) and logs (`resourceLogs`) are both supported. Metrics
+are not. The extension keeps handling everything else your function writes to
+stdout exactly as before, so OTLP output and ordinary log lines can be mixed
+freely.
+
+Spans are routed to the dataset named by their `service.name`, matching what
+would happen if the same spans were sent to Honeycomb's OTLP endpoint directly.
+`LIBHONEY_DATASET` is only used as the destination if your API key is a classic
+key.
+
+Note that not every SDK's built-in "console" exporter emits OTLP. Java's
+`OtlpJsonLoggingSpanExporter` does. Several other SDKs ship a `ConsoleSpanExporter`
+that prints a human-readable, SDK-specific shape instead — that is not OTLP and
+the extension will not recognize it. Check what your exporter actually prints
+against the sample above.
+
+Two constraints come from Lambda's log pipeline rather than from the extension:
+
+- **The payload must be a single line.** Pretty-printed JSON arrives as several
+  unrelated log records and cannot be reassembled. Disable pretty-printing.
+- **Keep batches small.** Lambda truncates very long log lines, and a truncated
+  payload is dropped rather than partially recovered. A batch span processor
+  with a small batch size, or a simple span processor, is the safer choice.
 
 ### Terraform Example
 
