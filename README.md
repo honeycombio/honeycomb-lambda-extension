@@ -92,11 +92,20 @@ would happen if the same spans were sent to Honeycomb's OTLP endpoint directly.
 `LIBHONEY_DATASET` is only used as the destination if your API key is a classic
 key.
 
-Note that not every SDK's built-in "console" exporter emits OTLP. Java's
-`OtlpJsonLoggingSpanExporter` does. Several other SDKs ship a `ConsoleSpanExporter`
-that prints a human-readable, SDK-specific shape instead — that is not OTLP and
-the extension will not recognize it. Check what your exporter actually prints
-against the sample above.
+**Do not reach for the exporter named "console".** Across SDKs that name usually
+selects a human-readable debugging exporter, not OTLP, and the extension will not
+recognize its output. In OpenTelemetry Java, for instance, `OTEL_TRACES_EXPORTER`
+has three plausible-looking values and only one of them is what you want:
+
+| Value | Emits | Usable here |
+| --- | --- | --- |
+| `experimental-otlp/stdout` | OTLP JSON straight to stdout, one `ResourceSpans` per line | **Yes** |
+| `logging-otlp` | OTLP JSON, but through `java.util.logging` | Only if the log formatter emits the bare message — the default formatter prefixes a timestamp and `INFO:` and splits across two lines |
+| `console` | A human-readable summary, not OTLP | No |
+
+Whatever SDK you use, check what it actually prints against the sample above
+before deploying. If the line doesn't start with `{"resourceSpans"` or
+`{"resourceLogs"`, the extension will treat it as an ordinary log line.
 
 Two constraints come from Lambda's log pipeline rather than from the extension:
 
