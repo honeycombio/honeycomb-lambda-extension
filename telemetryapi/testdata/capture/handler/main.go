@@ -37,13 +37,21 @@ func main() {
 		log.Fatal("AWS_LAMBDA_RUNTIME_API is not set")
 	}
 
+	// Only the first invocation emits payloads. Later invocations exist purely to
+	// thaw the environment so the first one's telemetry gets delivered and
+	// platform.report is emitted, and they must stay silent so the capture holds
+	// exactly one of each shape however many times the script invokes.
+	first := true
 	for {
 		requestID, err := nextInvocation(runtimeAPI)
 		if err != nil {
 			log.Fatalf("next invocation: %v", err)
 		}
 
-		emitPayloads()
+		if first {
+			emitPayloads()
+			first = false
+		}
 
 		if err := respond(runtimeAPI, requestID); err != nil {
 			log.Fatalf("responding: %v", err)

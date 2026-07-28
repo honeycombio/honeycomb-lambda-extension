@@ -82,12 +82,13 @@ for format in Text JSON; do
 		--logging-config "LogFormat=$format" >/dev/null
 	aws lambda wait function-updated-v2 --function-name "$NAME"
 
-	# Lambda freezes the execution environment once the runtime responds, so the
-	# telemetry from one invoke is not delivered to the extension (nor is the
-	# extension's stdout flushed) until the next invoke or shutdown. Invoke twice:
-	# the first emits the payloads, the second flushes them out.
+	# An invocation stays thawed until every extension asks for its next event, so
+	# the capture extension can and does receive the invoke's telemetry within it.
+	# A second invoke is still needed for platform.report, which is only emitted
+	# once the invoke has fully completed. Only the first invoke emits payloads, so
+	# extra invokes can't duplicate anything.
 	START_MS=$(python3 -c 'import time;print(int(time.time()*1000)-2000)')
-	for pass in 1 2 3; do
+	for pass in 1 2; do
 		echo "--- invoking (pass $pass)"
 		aws lambda invoke --function-name "$NAME" --payload '{}' \
 			--query 'FunctionError' --output text \
@@ -108,10 +109,10 @@ for format in Text JSON; do
 			--start-time "$START_MS" \
 			--filter-pattern '"CAPTURE:"' --query 'events[].message' --output json \
 			>"$WORK/raw-$format.json" 2>/dev/null || echo '[]' >"$WORK/raw-$format.json"
-		if [ "$(python3 "$HERE/collect.py" --count "$WORK/raw-$format.json")" != "0" ]; then
+		if [ "$(python3 "$HERE/collect.py" --ready "$WORK/raw-$format.json")" = "1" ]; then
 			break
 		fi
-		echo "    no function telemetry yet (attempt $attempt); invoking again"
+		echo "    capture incomplete (attempt $attempt); invoking again"
 		aws lambda invoke --function-name "$NAME" --payload '{}' "$WORK/nudge.json" >/dev/null
 		sleep 10
 	done

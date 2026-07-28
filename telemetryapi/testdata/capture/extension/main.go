@@ -22,6 +22,8 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sync"
+	"time"
 )
 
 const (
@@ -46,11 +48,54 @@ func main() {
 	}
 	fmt.Println("CAPTURE-READY")
 
-	// Hold the execution environment open so telemetry keeps arriving. The
-	// process ends when Lambda tears the environment down.
+	// An invocation isn't over when the runtime responds: Lambda keeps the
+	// environment thawed until every registered extension asks for its next
+	// event, and only then freezes. That window is what a real extension uses to
+	// flush, and it's the only chance to receive the telemetry buffered during
+	// the invoke. Calling next immediately would hand back permission to freeze
+	// before any of it arrived.
 	for {
 		if err := nextEvent(runtimeAPI, extensionID); err != nil {
 			log.Printf("next event: %v", err)
+			return
+		}
+		waitForQuietTelemetry()
+	}
+}
+
+// lastDelivery is when the receiver last saw a telemetry body.
+var lastDelivery struct {
+	sync.Mutex
+	at time.Time
+}
+
+func noteDelivery() {
+	lastDelivery.Lock()
+	defer lastDelivery.Unlock()
+	lastDelivery.at = time.Now()
+}
+
+func sinceDelivery() time.Duration {
+	lastDelivery.Lock()
+	defer lastDelivery.Unlock()
+	if lastDelivery.at.IsZero() {
+		return 0
+	}
+	return time.Since(lastDelivery.at)
+}
+
+// waitForQuietTelemetry holds the invocation open until telemetry stops arriving,
+// so a capture doesn't end mid-delivery. Bounded, because holding the invocation
+// open is billed time and Lambda will eventually lose patience.
+func waitForQuietTelemetry() {
+	const (
+		quiet    = 400 * time.Millisecond
+		deadline = 3 * time.Second
+	)
+	started := time.Now()
+	for time.Since(started) < deadline {
+		time.Sleep(50 * time.Millisecond)
+		if sinceDelivery() > quiet {
 			return
 		}
 	}
@@ -65,6 +110,7 @@ func serveReceiver() {
 			return
 		}
 		defer r.Body.Close()
+		noteDelivery()
 		fmt.Printf("CAPTURE:%s\n", base64.StdEncoding.EncodeToString(body))
 		w.WriteHeader(http.StatusOK)
 	})

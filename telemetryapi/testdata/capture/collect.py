@@ -32,16 +32,42 @@ def decode(raw_path):
     return [msg for body in bodies for msg in body]
 
 
+def dedupe(messages):
+    """Keeps one message per distinct type-and-record.
+
+    A capture can span several execution environments, since changing the log
+    format replaces them, and each fresh environment re-emits every payload. The
+    golden only needs one real example of each shape, so identical content is
+    collapsed and the earliest timestamp for it is kept.
+    """
+    seen = {}
+    for msg in messages:
+        key = (msg.get("type"), json.dumps(msg.get("record"), sort_keys=True))
+        if key not in seen or msg.get("time", "") < seen[key].get("time", ""):
+            seen[key] = msg
+    return list(seen.values())
+
+
+def ready(messages):
+    """Whether a capture holds everything the goldens need.
+
+    platform.report is only emitted once an invocation has fully completed, so it
+    cannot arrive during the invoke that produced it, however long an extension
+    holds the window open.
+    """
+    have_function = any(msg.get("type") == "function" for msg in messages)
+    have_report = any(msg.get("type") == "platform.report" for msg in messages)
+    return have_function and have_report
+
+
 def main() -> int:
-    # --count reports how many function-type messages a dump holds, so the
-    # capture script can keep invoking until the function's stdout shows up.
-    if sys.argv[1] == "--count":
-        combined = decode(sys.argv[2])
-        print(sum(1 for msg in combined if msg.get("type") == "function"))
+    # --ready tells the capture script whether to keep invoking.
+    if sys.argv[1] == "--ready":
+        print("1" if ready(decode(sys.argv[2])) else "0")
         return 0
 
     raw_path, out_path, log_format = sys.argv[1], sys.argv[2], sys.argv[3]
-    combined = decode(raw_path)
+    combined = dedupe(decode(raw_path))
     if not combined:
         print("no telemetry captured; refusing to write an empty golden", file=sys.stderr)
         return 1

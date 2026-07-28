@@ -4,13 +4,13 @@
       "functionName": "hny-lambda-ext-capture",
       "functionVersion": "$LATEST",
       "initializationType": "on-demand",
-      "instanceId": "2026/07/28/[$LATEST]e602c208eeee42d3ae80aa283dab66cb",
+      "instanceId": "2026/07/28/[$LATEST]26e6c32fa8d04bbfa55a6db4c12018d9",
       "instanceMaxMemory": 134217728,
       "phase": "init",
       "runtimeVersion": "provided:al2023.AmazonLinux2023.v147",
       "runtimeVersionArn": "arn:aws:lambda:us-east-2::runtime:de76c732350c9e34a061e048c112e5658bf193d2bde6cdea2744024740e1f636"
     },
-    "time": "2026-07-28T18:54:25.555Z",
+    "time": "2026-07-28T19:02:01.105Z",
     "type": "platform.initStart"
   },
   {
@@ -22,8 +22,17 @@
         "platform"
       ]
     },
-    "time": "2026-07-28T18:54:25.622Z",
+    "time": "2026-07-28T19:02:01.169Z",
     "type": "platform.telemetrySubscription"
+  },
+  {
+    "record": {
+      "initializationType": "on-demand",
+      "phase": "init",
+      "status": "success"
+    },
+    "time": "2026-07-28T19:02:01.225Z",
+    "type": "platform.initRuntimeDone"
   },
   {
     "record": {
@@ -34,138 +43,167 @@
       "name": "hny-lambda-ext-capture",
       "state": "Ready"
     },
-    "time": "2026-07-28T18:54:25.679Z",
+    "time": "2026-07-28T19:02:01.226Z",
     "type": "platform.extension"
   },
   {
     "record": {
       "initializationType": "on-demand",
       "metrics": {
-        "durationMs": 124.122
+        "durationMs": 120.381
       },
       "phase": "init",
       "status": "success"
     },
-    "time": "2026-07-28T18:54:25.679Z",
+    "time": "2026-07-28T19:02:01.226Z",
     "type": "platform.initReport"
   },
   {
     "record": {
-      "initializationType": "on-demand",
-      "phase": "init",
-      "status": "success"
-    },
-    "time": "2026-07-28T18:54:25.679Z",
-    "type": "platform.initRuntimeDone"
-  },
-  {
-    "record": {
       "functionArn": "arn:aws:lambda:us-east-2:702835727665:function:hny-lambda-ext-capture",
-      "requestId": "01af8d13-076c-4971-acc9-a6ad91b2b5b5",
+      "requestId": "c3626c7f-3602-46f2-8199-d6e8243bfa4a",
       "version": "$LATEST"
     },
-    "time": "2026-07-28T18:54:25.684Z",
+    "time": "2026-07-28T19:02:01.230Z",
     "type": "platform.start"
   },
   {
     "record": "MARKER otlp-traces\n",
-    "time": "2026-07-28T18:54:25.685Z",
+    "time": "2026-07-28T19:02:01.231Z",
     "type": "function"
   },
   {
     "record": "{\"resourceSpans\":[{\"resource\":{\"attributes\":[{\"key\":\"service.name\",\"value\":{\"stringValue\":\"capture-func\"}}]},\"scopeSpans\":[{\"scope\":{\"name\":\"capture-instrumentation\",\"version\":\"1.2.3\"},\"spans\":[{\"traceId\":\"5b8efff798038103d269b633813fc60c\",\"spanId\":\"eee19b7ec3c1b174\",\"name\":\"handler\",\"kind\":2,\"startTimeUnixNano\":\"1753000000000000000\",\"endTimeUnixNano\":\"1753000000123000000\",\"attributes\":[{\"key\":\"http.status_code\",\"value\":{\"intValue\":\"200\"}}]}]}]}]}\n",
-    "time": "2026-07-28T18:54:25.685Z",
+    "time": "2026-07-28T19:02:01.231Z",
     "type": "function"
   },
   {
     "record": "MARKER otlp-logs\n",
-    "time": "2026-07-28T18:54:25.685Z",
+    "time": "2026-07-28T19:02:01.231Z",
     "type": "function"
   },
   {
     "record": "{\"resourceLogs\":[{\"resource\":{\"attributes\":[{\"key\":\"service.name\",\"value\":{\"stringValue\":\"capture-func\"}}]},\"scopeLogs\":[{\"logRecords\":[{\"timeUnixNano\":\"1753000000000000000\",\"severityText\":\"ERROR\",\"body\":{\"stringValue\":\"captured log record\"}}]}]}]}\n",
-    "time": "2026-07-28T18:54:25.685Z",
+    "time": "2026-07-28T19:02:01.231Z",
     "type": "function"
   },
   {
     "record": "MARKER otlp-stdout-envelope\n",
-    "time": "2026-07-28T18:54:25.685Z",
+    "time": "2026-07-28T19:02:01.231Z",
     "type": "function"
   },
   {
     "record": "{\"__otel_otlp_stdout\":\"otlp-stdout-span-exporter@0.15.0\",\"base64\":true,\"content-encoding\":\"gzip\",\"content-type\":\"application/json\",\"endpoint\":\"http://localhost:4318/v1/traces\",\"method\":\"POST\",\"payload\":\"H4sIAAAAAAAA/3SQz27DIAzG38VnFkFYm4Q32GWX/blM00TAWVEbJwJTbary7lMStV2lDS4Yf99n63eCiGnI0eHTaCmBebv+gDmBZY6hzYxra4/fYCBhPAaHBdkeQcDRHvIiThwDfb6uJTg7co5412VyME3vk4DkhvHXoKWcjUvQ1REoccw9ElsOA80jMKb5ZUAVZaFhzrrEcLQOHzwY2LQ1dl1XNbXUtZLal9um3WpdK925rXSw2hYtIqqmrdBpp1pV3YM4r7Gz5A8YQcA+kAdTCkhsIz+HHl8ofD1aGuZNqo2WtwcEIPl/darUF92fYHfMY5HYck4fbvA3cAPxmWwp5QJ0vT8BAAD//7rS95XDAQAA\",\"source\":\"capture-func\"}\n",
-    "time": "2026-07-28T18:54:25.686Z",
+    "time": "2026-07-28T19:02:01.232Z",
     "type": "function"
   },
   {
     "record": "MARKER libhoney-envelope\n",
-    "time": "2026-07-28T18:54:25.686Z",
+    "time": "2026-07-28T19:02:01.232Z",
     "type": "function"
   },
   {
     "record": "{\"time\":\"2025-07-20T08:26:40.000Z\",\"samplerate\":1,\"data\":{\"name\":\"beeline-span\",\"duration_ms\":12.5}}\n",
-    "time": "2026-07-28T18:54:25.686Z",
+    "time": "2026-07-28T19:02:01.232Z",
     "type": "function"
   },
   {
     "record": "MARKER plain-text\n",
-    "time": "2026-07-28T18:54:25.686Z",
+    "time": "2026-07-28T19:02:01.232Z",
     "type": "function"
   },
   {
     "record": "an ordinary log line\n",
-    "time": "2026-07-28T18:54:25.686Z",
+    "time": "2026-07-28T19:02:01.232Z",
     "type": "function"
   },
   {
     "record": {
       "metrics": {
-        "durationMs": 15.608,
+        "durationMs": 15.529,
         "producedBytes": 10
       },
-      "requestId": "01af8d13-076c-4971-acc9-a6ad91b2b5b5",
+      "requestId": "c3626c7f-3602-46f2-8199-d6e8243bfa4a",
       "spans": [
         {
-          "durationMs": 15.081,
+          "durationMs": 15.095,
           "name": "responseLatency",
-          "start": "2026-07-28T18:54:25.684Z"
+          "start": "2026-07-28T19:02:01.230Z"
         },
         {
-          "durationMs": 0.099,
+          "durationMs": 0.092,
           "name": "responseDuration",
-          "start": "2026-07-28T18:54:25.699Z"
+          "start": "2026-07-28T19:02:01.245Z"
         },
         {
-          "durationMs": 0.218,
+          "durationMs": 0.21,
           "name": "runtimeOverhead",
-          "start": "2026-07-28T18:54:25.699Z"
+          "start": "2026-07-28T19:02:01.245Z"
         }
       ],
       "status": "success"
     },
-    "time": "2026-07-28T18:54:25.699Z",
+    "time": "2026-07-28T19:02:01.245Z",
     "type": "platform.runtimeDone"
   },
   {
     "record": {
       "metrics": {
-        "billedDurationMs": 141,
-        "durationMs": 16.033,
-        "initDurationMs": 124.122,
+        "billedDurationMs": 624,
+        "durationMs": 502.976,
+        "initDurationMs": 120.381,
         "maxMemoryUsedMB": 26,
         "memorySizeMB": 128
       },
-      "requestId": "01af8d13-076c-4971-acc9-a6ad91b2b5b5",
+      "requestId": "c3626c7f-3602-46f2-8199-d6e8243bfa4a",
       "spans": [
         {
-          "durationMs": 0.003,
+          "durationMs": 486.99,
           "name": "extensionOverhead",
-          "start": "2026-07-28T18:54:25.699Z"
+          "start": "2026-07-28T19:02:01.245Z"
         }
       ],
       "status": "success"
     },
-    "time": "2026-07-28T18:54:25.700Z",
+    "time": "2026-07-28T19:02:01.733Z",
     "type": "platform.report"
+  },
+  {
+    "record": {
+      "metrics": {
+        "durationMs": 0.741,
+        "producedBytes": 10
+      },
+      "requestId": "3fe3b35a-3198-453f-8e9c-e58e514cffae",
+      "spans": [
+        {
+          "durationMs": 0.471,
+          "name": "responseLatency",
+          "start": "2026-07-28T19:02:04.752Z"
+        },
+        {
+          "durationMs": 0.048,
+          "name": "responseDuration",
+          "start": "2026-07-28T19:02:04.752Z"
+        },
+        {
+          "durationMs": 0.16,
+          "name": "runtimeOverhead",
+          "start": "2026-07-28T19:02:04.752Z"
+        }
+      ],
+      "status": "success"
+    },
+    "time": "2026-07-28T19:02:04.752Z",
+    "type": "platform.runtimeDone"
+  },
+  {
+    "record": {
+      "functionArn": "arn:aws:lambda:us-east-2:702835727665:function:hny-lambda-ext-capture",
+      "requestId": "3fe3b35a-3198-453f-8e9c-e58e514cffae",
+      "version": "$LATEST"
+    },
+    "time": "2026-07-28T19:02:04.752Z",
+    "type": "platform.start"
   }
 ]

@@ -19,16 +19,27 @@ prints confirmation that nothing is left behind. `KEEP=1` skips teardown when a
 capture needs debugging. It reuses an existing execution role rather than
 creating IAM; override with `ROLE_ARN`.
 
-Two behaviors of the platform shape how this works, both learned the hard way:
+Three behaviors of the platform shape how this works:
 
-- **Lambda freezes the execution environment** once the runtime responds. The
-  telemetry from one invoke isn't delivered to the extension, and the extension's
-  own stdout isn't flushed, until the next invoke or shutdown. So the script
-  invokes several times and keeps going until the function's own stdout appears,
-  rather than accepting the init-phase messages that arrive first.
+- **An invocation isn't over when the runtime responds.** Lambda keeps the
+  environment thawed until every registered extension asks for its next event,
+  and only then freezes. That window is what an extension uses to flush, and it's
+  when the invoke's telemetry is delivered. The capture extension therefore waits
+  until telemetry stops arriving before asking for its next event; a tight
+  next-event loop hands back permission to freeze before anything shows up, and
+  captures only the init phase.
+- **`platform.report` is emitted after the invocation fully completes**, so it
+  can never arrive during the invoke that produced it, however long an extension
+  holds the window open. The script keeps invoking until it has both function
+  telemetry and a report.
 - **The capture extension subscribes to `function` and `platform` but not
   `extension`.** Its captures are written to its own stdout, which is extension
   telemetry; subscribing to that would feed every capture back to itself.
+
+Changing the log format replaces the execution environment, and each fresh
+environment re-emits every payload, so captures are deduplicated by content —
+one message per distinct type and record, keeping the earliest timestamp. That
+makes a re-capture produce a reviewable diff rather than a reshuffle.
 
 ## What the current goldens do and don't cover
 
