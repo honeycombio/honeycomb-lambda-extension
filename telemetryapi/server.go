@@ -125,6 +125,12 @@ func recordLine(record interface{}) (string, bool) {
 	return "", false
 }
 
+// newEvent starts an event, marking which kind of telemetry it came from.
+//
+// Translated OTLP is marked too, even though the OTLP endpoint would not add
+// this field. Annotating telemetry with the component that processed it is the
+// same thing Refinery does on the way through, and it is how a query can tell a
+// span that arrived via this extension from one sent directly.
 func newEvent(client eventCreator, msg LogMessage) *libhoney.Event {
 	event := client.NewEvent()
 	event.AddField("lambda_extension.type", msg.Type)

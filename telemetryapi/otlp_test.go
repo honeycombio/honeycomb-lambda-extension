@@ -197,6 +197,23 @@ func TestUnusualRecordDoesNotLoseTheRestOfTheBatch(t *testing.T) {
 	assert.Equal(t, "a real log line", events[1].Data["record"])
 }
 
+// Translated telemetry is deliberately marked with the extension's own field, so
+// a query can tell it apart from telemetry sent directly to Honeycomb. Pinned
+// because it is a considered deviation from what the OTLP endpoint produces.
+func TestTranslatedEventsCarryExtensionMetadata(t *testing.T) {
+	events := postMessagesWithConfig(t, []LogMessage{{
+		Time:   "2025-07-20T08:26:40.000Z",
+		Type:   "function",
+		Record: recString(twoSpanExport),
+	}}, otlpConfig)
+
+	require.Len(t, events, 2)
+	for _, event := range events {
+		assert.Equal(t, "function", event.Data["lambda_extension.type"])
+		assert.Equal(t, "my-func", event.Dataset, "still routed by service.name")
+	}
+}
+
 // The sample rate husky derives has to survive onto the event, or presampled
 // spans would be counted once each instead of at their true weight.
 func TestOTLPSampleRateReachesTheEvent(t *testing.T) {

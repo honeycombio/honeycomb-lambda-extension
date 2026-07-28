@@ -96,6 +96,11 @@ protobuf or JSON, gzip or zstd or uncompressed all work. The signal is taken fro
 `endpoint`. Because the payload is compressed, this format also fits far more
 spans into a line before hitting the limits described below.
 
+Every event the extension sends carries a `lambda_extension.type` field naming
+the kind of telemetry it came from, translated OTLP included. That is how a query
+distinguishes a span that arrived through this extension from one sent straight
+to Honeycomb, in the same way Refinery annotates what passes through it.
+
 Telemetry is routed to the dataset named by its `service.name`, matching what
 would happen if it were sent to Honeycomb's OTLP endpoint directly. With a
 classic API key, spans go to `LIBHONEY_DATASET` instead, while log records still
