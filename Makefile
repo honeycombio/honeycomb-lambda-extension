@@ -25,6 +25,11 @@ else
 	gotestsum --junitfile unit-tests.xml --format testname -- -race ./...
 endif
 
+.PHONY: test-rie
+#: run the extension inside the Lambda Runtime Interface Emulator (needs Docker)
+test-rie:
+	go test -tags rie -count=1 -timeout 600s -v ./test/rie/
+
 .PHONY: version
 version:
 	@echo $(CIRCLE_TAG)
