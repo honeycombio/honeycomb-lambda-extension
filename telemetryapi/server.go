@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strconv"
 	"time"
@@ -44,7 +44,7 @@ var (
 func handler(client eventCreator, config extension.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Debug("handler - log batch received")
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			log.Warn("Error", err)
 			return
@@ -160,15 +160,25 @@ func sendOTLP(client eventCreator, config extension.Config, msg LogMessage, reco
 		return false
 	}
 
+	sent := 0
 	for _, batch := range batches {
 		for _, translated := range batch.Events {
 			event := newEvent(client, msg)
 			event.Dataset = batch.Dataset
 			event.Timestamp = translated.Timestamp
+			// husky guarantees a sample rate of at least 1, so this cannot wrap.
 			event.SampleRate = uint(translated.SampleRate)
 			event.Add(translated.Attributes)
 			sendEvent(event)
+			sent++
 		}
+	}
+
+	// An export request holding no spans or log records would otherwise vanish
+	// without a trace, being neither translated into anything nor logged.
+	if sent == 0 {
+		log.Warn("OTLP record from function stdout contained no spans or log records")
+		return false
 	}
 	return true
 }

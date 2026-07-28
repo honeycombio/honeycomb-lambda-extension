@@ -55,9 +55,10 @@ func Detect(record []byte) Signal {
 }
 
 // Translate converts an OTLP/JSON export request into Honeycomb events grouped
-// by destination dataset. The dataset argument is only consulted for classic
-// API keys; for Environments & Services keys husky derives the dataset from the
-// telemetry itself, as it does for OTLP traffic arriving at the API.
+// by destination dataset, matching how the OTLP endpoint would route the same
+// payload. Note that husky routes the two signals differently: spans use the
+// dataset argument only for classic keys, while log records prefer their
+// service.name for any key and fall back to the argument.
 func Translate(ctx context.Context, signal Signal, record []byte, apiKey, dataset string) ([]otlp.Batch, error) {
 	ri := otlp.RequestInfo{
 		ApiKey:      apiKey,

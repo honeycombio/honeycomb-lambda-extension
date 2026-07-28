@@ -87,10 +87,15 @@ are not. The extension keeps handling everything else your function writes to
 stdout exactly as before, so OTLP output and ordinary log lines can be mixed
 freely.
 
-Spans are routed to the dataset named by their `service.name`, matching what
-would happen if the same spans were sent to Honeycomb's OTLP endpoint directly.
-`LIBHONEY_DATASET` is only used as the destination if your API key is a classic
-key.
+Telemetry is routed to the dataset named by its `service.name`, matching what
+would happen if it were sent to Honeycomb's OTLP endpoint directly. With a
+classic API key, spans go to `LIBHONEY_DATASET` instead, while log records still
+follow `service.name`.
+
+**Keep setting `LIBHONEY_DATASET` regardless.** The extension disables itself
+entirely when it is unset — you would lose platform events and ordinary log
+lines too, not just OTLP. It remains the destination for everything that isn't
+an OTLP payload.
 
 **Do not reach for the exporter named "console".** Across SDKs that name usually
 selects a human-readable debugging exporter, not OTLP, and the extension will not
@@ -100,7 +105,7 @@ has three plausible-looking values and only one of them is what you want:
 | Value | Emits | Usable here |
 | --- | --- | --- |
 | `experimental-otlp/stdout` | OTLP JSON straight to stdout, one `ResourceSpans` per line | **Yes** |
-| `logging-otlp` | OTLP JSON, but through `java.util.logging` | Only if the log formatter emits the bare message — the default formatter prefixes a timestamp and `INFO:` and splits across two lines |
+| `logging-otlp` | Each line as `{"resource":…,"scopeSpans":…}`, with no `resourceSpans` wrapper ([opentelemetry-java#6749](https://github.com/open-telemetry/opentelemetry-java/issues/6749)), written through `java.util.logging` | No, on both counts — the wrapper is missing, and the default log formatter also prefixes a timestamp and `INFO:` |
 | `console` | A human-readable summary, not OTLP | No |
 
 Whatever SDK you use, check what it actually prints against the sample above
@@ -111,9 +116,11 @@ Two constraints come from Lambda's log pipeline rather than from the extension:
 
 - **The payload must be a single line.** Pretty-printed JSON arrives as several
   unrelated log records and cannot be reassembled. Disable pretty-printing.
-- **Keep batches small.** Lambda truncates very long log lines, and a truncated
-  payload is dropped rather than partially recovered. A batch span processor
-  with a small batch size, or a simple span processor, is the safer choice.
+- **Keep batches small.** Lambda truncates very long log lines. A truncated
+  payload is no longer valid JSON, so none of its spans are recovered; it
+  arrives instead as one event holding the broken text in a `record` field. A
+  batch span processor with a small batch size, or a simple span processor, is
+  the safer choice.
 
 ### Terraform Example
 

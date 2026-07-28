@@ -193,3 +193,80 @@ func TestUnusualRecordDoesNotLoseTheRestOfTheBatch(t *testing.T) {
 	require.Len(t, events, 2)
 	assert.Equal(t, "a real log line", events[1].Data["record"])
 }
+
+// The sample rate husky derives has to survive onto the event, or presampled
+// spans would be counted once each instead of at their true weight.
+func TestOTLPSampleRateReachesTheEvent(t *testing.T) {
+	const sampled = `{"resourceSpans":[{"resource":{"attributes":[
+		{"key":"service.name","value":{"stringValue":"my-func"}}]},
+		"scopeSpans":[{"spans":[{"traceId":"5b8efff798038103d269b633813fc60c",
+		"spanId":"eee19b7ec3c1b174","name":"handler",
+		"startTimeUnixNano":"1753000000000000000","endTimeUnixNano":"1753000000001000000",
+		"attributes":[{"key":"sampleRate","value":{"intValue":"100"}}]}]}]}]}`
+
+	events := postMessagesWithConfig(t, []LogMessage{{
+		Time:   "2025-07-20T08:26:40.000Z",
+		Type:   "function",
+		Record: recString(sampled),
+	}}, otlpConfig)
+
+	require.Len(t, events, 1)
+	assert.EqualValues(t, 100, events[0].SampleRate)
+	assert.NotContains(t, events[0].Data, "sampleRate", "husky consumes the attribute")
+}
+
+// An export request that translates to nothing must not disappear: it falls
+// through to ordinary handling so the payload stays visible.
+func TestOTLPWithNoSpansFallsThrough(t *testing.T) {
+	testCases := []struct {
+		name   string
+		record string
+	}{
+		{"empty resourceSpans", `{"resourceSpans":[]}`},
+		{"null resourceSpans", `{"resourceSpans":null}`},
+		{"resource with no spans", `{"resourceSpans":[{"scopeSpans":[]}]}`},
+		{"empty resourceLogs", `{"resourceLogs":[]}`},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			events := postMessagesWithConfig(t, []LogMessage{{
+				Time:   "2025-07-20T08:26:40.000Z",
+				Type:   "function",
+				Record: recString(tc.record),
+			}}, otlpConfig)
+
+			require.Len(t, events, 1, "the record must still produce an event")
+			assert.Equal(t, "configured-dataset", events[0].Dataset)
+		})
+	}
+}
+
+// husky routes trace and log datasets differently for classic keys: traces
+// honor the configured dataset, logs still follow service.name. Pinned here
+// because it is asymmetric and surprising.
+func TestOTLPClassicKeyRoutesLogsByServiceName(t *testing.T) {
+	classicConfig := extension.Config{
+		APIKey:  "0123456789abcdef0123456789abcdef",
+		Dataset: "configured-dataset",
+	}
+
+	logEvents := postMessagesWithConfig(t, []LogMessage{{
+		Time: "2025-07-20T08:26:40.000Z",
+		Type: "function",
+		Record: recString(`{"resourceLogs":[{"resource":{"attributes":[
+			{"key":"service.name","value":{"stringValue":"my-func"}}]},
+			"scopeLogs":[{"logRecords":[{"timeUnixNano":"1753000000000000000",
+			"body":{"stringValue":"it broke"}}]}]}]}`),
+	}}, classicConfig)
+	require.Len(t, logEvents, 1)
+	assert.Equal(t, "my-func", logEvents[0].Dataset)
+
+	spanEvents := postMessagesWithConfig(t, []LogMessage{{
+		Time:   "2025-07-20T08:26:40.000Z",
+		Type:   "function",
+		Record: recString(twoSpanExport),
+	}}, classicConfig)
+	require.Len(t, spanEvents, 2)
+	assert.Equal(t, "configured-dataset", spanEvents[0].Dataset)
+}
