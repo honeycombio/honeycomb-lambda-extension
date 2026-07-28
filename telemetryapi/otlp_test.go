@@ -1,6 +1,9 @@
 package telemetryapi
 
 import (
+	"bytes"
+	"compress/gzip"
+	"encoding/base64"
 	"encoding/json"
 	"testing"
 	"time"
@@ -269,4 +272,48 @@ func TestOTLPClassicKeyRoutesLogsByServiceName(t *testing.T) {
 	}}, classicConfig)
 	require.Len(t, spanEvents, 2)
 	assert.Equal(t, "configured-dataset", spanEvents[0].Dataset)
+}
+
+// The otlp-stdout exporters wrap a compressed payload rather than writing
+// OTLP/JSON, and that has to work through the handler as well.
+func TestOTLPStdoutEnvelopeThroughHandler(t *testing.T) {
+	events := postMessagesWithConfig(t, []LogMessage{{
+		Time:   "2025-07-20T08:26:40.000Z",
+		Type:   "function",
+		Record: recString(otlpStdoutEnvelopeFixture(t)),
+	}}, otlpConfig)
+
+	require.Len(t, events, 1)
+	assert.Equal(t, "my-func", events[0].Dataset)
+	assert.Equal(t, "handler", events[0].Data["name"])
+	assert.Equal(t, "function", events[0].Data["lambda_extension.type"])
+}
+
+// otlpStdoutEnvelopeFixture is one line of gzipped, base64-encoded OTLP JSON in
+// the envelope those exporters emit.
+func otlpStdoutEnvelopeFixture(t *testing.T) string {
+	t.Helper()
+	const span = `{"resourceSpans":[{"resource":{"attributes":[
+		{"key":"service.name","value":{"stringValue":"my-func"}}]},
+		"scopeSpans":[{"spans":[{"traceId":"5b8efff798038103d269b633813fc60c",
+		"spanId":"eee19b7ec3c1b174","name":"handler",
+		"startTimeUnixNano":"1753000000000000000","endTimeUnixNano":"1753000000123000000"}]}]}]}`
+
+	var compressed bytes.Buffer
+	writer := gzip.NewWriter(&compressed)
+	_, err := writer.Write([]byte(span))
+	require.NoError(t, err)
+	require.NoError(t, writer.Close())
+
+	line, err := json.Marshal(map[string]interface{}{
+		"__otel_otlp_stdout": "otlp-stdout-span-exporter@0.15.0",
+		"source":             "my-func",
+		"endpoint":           "http://localhost:4318/v1/traces",
+		"content-type":       "application/json",
+		"content-encoding":   "gzip",
+		"payload":            base64.StdEncoding.EncodeToString(compressed.Bytes()),
+		"base64":             true,
+	})
+	require.NoError(t, err)
+	return string(line)
 }

@@ -28,7 +28,7 @@ const logsRecord = `{"resourceLogs":[{"resource":{"attributes":[
 	"scopeLogs":[{"logRecords":[{"timeUnixNano":"1753000000000000000",
 	"severityText":"ERROR","body":{"stringValue":"it broke"}}]}]}]}`
 
-func TestDetect(t *testing.T) {
+func TestParseSignals(t *testing.T) {
 	testCases := []struct {
 		name   string
 		record string
@@ -50,7 +50,9 @@ func TestDetect(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.want, Detect([]byte(tc.record)))
+			payload, err := Parse([]byte(tc.record))
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, signalOf(payload))
 		})
 	}
 }
@@ -58,7 +60,7 @@ func TestDetect(t *testing.T) {
 // Spans should translate to the same fields Honeycomb's OTLP endpoint would
 // produce, so that switching transports doesn't change what a user queries on.
 func TestTranslateTraces(t *testing.T) {
-	batches, err := Translate(context.Background(), SignalTraces, []byte(tracesRecord), esAPIKey, "fallback-dataset")
+	batches, err := Translate(context.Background(), mustParse(t, tracesRecord), esAPIKey, "fallback-dataset")
 	require.NoError(t, err)
 	require.Len(t, batches, 1)
 
@@ -89,7 +91,7 @@ func TestTranslateTraces(t *testing.T) {
 }
 
 func TestTranslateLogs(t *testing.T) {
-	batches, err := Translate(context.Background(), SignalLogs, []byte(logsRecord), esAPIKey, "fallback-dataset")
+	batches, err := Translate(context.Background(), mustParse(t, logsRecord), esAPIKey, "fallback-dataset")
 	require.NoError(t, err)
 	require.Len(t, batches, 1)
 	require.Len(t, batches[0].Events, 1)
@@ -104,7 +106,7 @@ func TestTranslateLogs(t *testing.T) {
 // Classic keys have no notion of a service-derived dataset, so everything lands
 // in the dataset the extension is configured with.
 func TestTranslateClassicKeyUsesConfiguredDataset(t *testing.T) {
-	batches, err := Translate(context.Background(), SignalTraces, []byte(tracesRecord), classicAPIKey, "fallback-dataset")
+	batches, err := Translate(context.Background(), mustParse(t, tracesRecord), classicAPIKey, "fallback-dataset")
 	require.NoError(t, err)
 	require.Len(t, batches, 1)
 	assert.Equal(t, "fallback-dataset", batches[0].Dataset)
@@ -127,21 +129,25 @@ func TestTranslateErrors(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := Translate(context.Background(), tc.signal, []byte(tc.record), tc.apiKey, tc.dataset)
+			payload := &Payload{Signal: tc.signal, Body: []byte(tc.record), ContentType: "application/json"}
+			_, err := Translate(context.Background(), payload, tc.apiKey, tc.dataset)
 			assert.ErrorIs(t, err, tc.wantErr)
 		})
 	}
 
 	t.Run("no signal", func(t *testing.T) {
-		_, err := Translate(context.Background(), SignalNone, []byte(tracesRecord), esAPIKey, "ds")
-		assert.Error(t, err, "callers must not ask for a translation of a non-OTLP record")
+		payload := &Payload{Signal: SignalNone, Body: []byte(tracesRecord), ContentType: "application/json"}
+		_, err := Translate(context.Background(), payload, esAPIKey, "ds")
+		assert.Error(t, err, "callers must not ask for a translation of a non-OTLP payload")
 	})
 }
 
 // A record carrying both signals is malformed. Traces win; pinned here so the
 // choice is visible if it ever changes.
-func TestDetectPrefersTracesWhenBothPresent(t *testing.T) {
-	assert.Equal(t, SignalTraces, Detect([]byte(`{"resourceSpans":[],"resourceLogs":[]}`)))
+func TestParsePrefersTracesWhenBothPresent(t *testing.T) {
+	payload, err := Parse([]byte(`{"resourceSpans":[],"resourceLogs":[]}`))
+	require.NoError(t, err)
+	assert.Equal(t, SignalTraces, signalOf(payload))
 }
 
 // husky groups events by dataset, so one line naming two services must produce
@@ -157,7 +163,7 @@ func TestTranslateSplitsResourcesByService(t *testing.T) {
 		"spanId":"eee19b7ec3c1b175","name":"b","startTimeUnixNano":"1753000000000000000",
 		"endTimeUnixNano":"1753000000001000000"}]}]}]}`
 
-	batches, err := Translate(context.Background(), SignalTraces, []byte(twoServices), esAPIKey, "fallback-dataset")
+	batches, err := Translate(context.Background(), mustParse(t, twoServices), esAPIKey, "fallback-dataset")
 	require.NoError(t, err)
 
 	datasets := make(map[string]int)
@@ -177,11 +183,27 @@ func TestTranslateSnakeCase(t *testing.T) {
 		"start_time_unix_nano":"1753000000000000000",
 		"end_time_unix_nano":"1753000000123000000"}]}]}]}`
 
-	batches, err := Translate(context.Background(), SignalTraces, []byte(snakeCase), esAPIKey, "fallback-dataset")
+	batches, err := Translate(context.Background(), mustParse(t, snakeCase), esAPIKey, "fallback-dataset")
 	require.NoError(t, err)
 	require.Len(t, batches, 1)
 	require.Len(t, batches[0].Events, 1)
 	assert.Equal(t, "my-func", batches[0].Dataset)
 	assert.Equal(t, "handler", batches[0].Events[0].Attributes["name"])
 	assert.EqualValues(t, 123, batches[0].Events[0].Attributes["duration_ms"])
+}
+
+// mustParse fails the test if a fixture the test treats as OTLP isn't recognized.
+func mustParse(t *testing.T, record string) *Payload {
+	t.Helper()
+	payload, err := Parse([]byte(record))
+	require.NoError(t, err)
+	require.NotNil(t, payload, "fixture should be recognized as an export request")
+	return payload
+}
+
+func signalOf(payload *Payload) Signal {
+	if payload == nil {
+		return SignalNone
+	}
+	return payload.Signal
 }

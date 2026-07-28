@@ -75,17 +75,26 @@ extension recognizes OTLP/JSON on stdout and forwards it, so there is no
 collector process, no sidecar to connect to, and no gRPC endpoint to wait for
 during a cold start.
 
-Configure your SDK with an exporter that writes **OTLP/JSON**, which looks like
-this on the wire:
+Two line formats are recognized. Traces and logs are supported in both; metrics
+are not. Everything else your function writes to stdout is handled exactly as
+before, so telemetry and ordinary log lines can be mixed freely.
+
+**OTLP/JSON written directly**, one export request per line:
 
 ```json
 {"resourceSpans":[{"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"my-func"}}]},"scopeSpans":[{"spans":[{"traceId":"5b8efff798038103d269b633813fc60c","spanId":"eee19b7ec3c1b174","name":"handler","kind":2,"startTimeUnixNano":"1753000000000000000","endTimeUnixNano":"1753000000123000000"}]}]}]}
 ```
 
-Traces (`resourceSpans`) and logs (`resourceLogs`) are both supported. Metrics
-are not. The extension keeps handling everything else your function writes to
-stdout exactly as before, so OTLP output and ordinary log lines can be mixed
-freely.
+**The `otlp-stdout` exporter envelope**, which wraps a compressed export request:
+
+```json
+{"__otel_otlp_stdout":"otlp-stdout-span-exporter@0.15.0","source":"my-func","endpoint":"http://localhost:4318/v1/traces","method":"POST","content-type":"application/x-protobuf","content-encoding":"gzip","payload":"H4sIAAAA…","base64":true}
+```
+
+The `content-type` and `content-encoding` the envelope declares are honored, so
+protobuf or JSON, gzip or zstd or uncompressed all work. The signal is taken from
+`endpoint`. Because the payload is compressed, this format also fits far more
+spans into a line before hitting the limits described below.
 
 Telemetry is routed to the dataset named by its `service.name`, matching what
 would happen if it were sent to Honeycomb's OTLP endpoint directly. With a
@@ -97,20 +106,27 @@ entirely when it is unset — you would lose platform events and ordinary log
 lines too, not just OTLP. It remains the destination for everything that isn't
 an OTLP payload.
 
-**Do not reach for the exporter named "console".** Across SDKs that name usually
-selects a human-readable debugging exporter, not OTLP, and the extension will not
-recognize its output. In OpenTelemetry Java, for instance, `OTEL_TRACES_EXPORTER`
-has three plausible-looking values and only one of them is what you want:
+#### Choosing an exporter
 
-| Value | Emits | Usable here |
+**Not the one called "console".** In most SDKs that name selects a
+human-readable debugging exporter whose output is neither OTLP nor stable, and
+the extension will not recognize it.
+
+| SDK | Use | Avoid |
 | --- | --- | --- |
-| `experimental-otlp/stdout` | OTLP JSON straight to stdout, one `ResourceSpans` per line | **Yes** |
-| `logging-otlp` | Each line as `{"resource":…,"scopeSpans":…}`, with no `resourceSpans` wrapper ([opentelemetry-java#6749](https://github.com/open-telemetry/opentelemetry-java/issues/6749)), written through `java.util.logging` | No, on both counts — the wrapper is missing, and the default log formatter also prefixes a timestamp and `INFO:` |
-| `console` | A human-readable summary, not OTLP | No |
+| Java | `OTEL_TRACES_EXPORTER=experimental-otlp/stdout` (1.43.0+), which writes OTLP JSON straight to stdout | `logging-otlp` writes each line as `{"resource":…,"scopeSpans":…}` with no `resourceSpans` wrapper ([opentelemetry-java#6749](https://github.com/open-telemetry/opentelemetry-java/issues/6749)) and routes through `java.util.logging`, whose default formatter prefixes a timestamp and `INFO:`. `console` is a human-readable summary. |
+| Node.js | [`@dev7a/otlp-stdout-span-exporter`](https://www.npmjs.com/package/@dev7a/otlp-stdout-span-exporter), which emits the envelope above | `ConsoleSpanExporter` uses `console.dir` — Node's inspect format, not JSON, multi-line, and truncated below depth 3 |
+| Python | [`otlp-stdout-span-exporter`](https://pypi.org/project/otlp-stdout-span-exporter/) | `ConsoleSpanExporter` emits the SDK's own span shape via `to_json()`, multi-line and not OTLP |
+| Rust | [`otlp-stdout-span-exporter`](https://crates.io/crates/otlp-stdout-span-exporter) | — |
 
-Whatever SDK you use, check what it actually prints against the sample above
-before deploying. If the line doesn't start with `{"resourceSpans"` or
-`{"resourceLogs"`, the extension will treat it as an ordinary log line.
+The `otlp-stdout` exporters are community packages from the
+[serverless-otlp-forwarder](https://github.com/dev7a/serverless-otlp-forwarder)
+project, not part of OpenTelemetry proper. Java's `experimental-otlp/stdout` is
+upstream but, as the name says, experimental.
+
+Whatever you use, check what it actually prints before deploying. A line the
+extension doesn't recognize is not dropped — it becomes an ordinary log event,
+which is the symptom to look for if spans aren't arriving.
 
 Two constraints come from Lambda's log pipeline rather than from the extension:
 

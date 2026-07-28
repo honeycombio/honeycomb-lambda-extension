@@ -149,12 +149,16 @@ func sendOTLP(client eventCreator, config extension.Config, msg LogMessage, reco
 	if msg.Type != string(FunctionLog) {
 		return false
 	}
-	signal := otlpjson.Detect(record)
-	if signal == otlpjson.SignalNone {
+	payload, err := otlpjson.Parse(record)
+	if err != nil {
+		log.WithError(err).Warn("Could not read OTLP record from function stdout")
+		return false
+	}
+	if payload == nil {
 		return false
 	}
 
-	batches, err := otlpjson.Translate(context.Background(), signal, record, config.APIKey, config.Dataset)
+	batches, err := otlpjson.Translate(context.Background(), payload, config.APIKey, config.Dataset)
 	if err != nil {
 		log.WithError(err).Warn("Could not translate OTLP record from function stdout")
 		return false
