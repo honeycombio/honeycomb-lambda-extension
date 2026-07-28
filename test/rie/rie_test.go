@@ -9,17 +9,17 @@
 // function. That is the class of failure that made the extension unusable on
 // Lambda Managed Instances, and none of it is reachable from a unit test.
 //
-// What this cannot cover is telemetry translation. The emulator answers a
-// Telemetry API subscription with a 2xx whose body reads Telemetry.NotSupported
-// and then delivers nothing, so no span can be produced here however the
-// extension behaves. That is what testdata's captured payloads and the replay
-// tests are for; a green run of this suite says nothing about OTLP.
+// It also covers translation end to end: the function writes each payload shape
+// to real stdout, the platform delivers it, and the events the extension sends
+// are decoded and asserted on. The emulator bundled in the Lambda base image
+// cannot do this -- its Telemetry API is a stub that accepts a subscription and
+// delivers nothing -- so these tests build one that implements the API, pinned in
+// emulator.go. Anything the emulator gets wrong is still emulation: the captured
+// payloads in testdata remain the authority on what Lambda really sends.
 //
-// Two emulator behaviors shape these tests. It initializes the runtime and its
-// extensions lazily on the first invocation rather than at container start, so
-// there is nothing to wait for before invoking. And because its subscription
-// response is a 2xx, no test here can exercise what the extension does with a
-// subscription that actually fails.
+// The emulator initializes the runtime and its extensions lazily on the first
+// invocation rather than at container start, so there is nothing to wait for
+// before invoking.
 //
 // Requires Docker. Excluded from the default build by the rie tag; run with
 // `make test-rie`.
@@ -31,9 +31,13 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
+
+// invokeResponse is what the test handler returns from a successful invocation.
+const invokeResponse = "captured"
 
 const (
 	image         = "honeycomb-lambda-extension-rie:test"
@@ -41,17 +45,30 @@ const (
 	hostPort      = "9101"
 )
 
-func TestMain(m *testing.M) {
-	if err := buildImage(); err != nil {
-		fmt.Fprintf(os.Stderr, "building test image: %v\n", err)
-		os.Exit(1)
+// The image is built once, by whichever test needs it first, because building
+// the emulator needs a *testing.T to skip on when the network is unavailable.
+var buildOnce sync.Once
+
+func ensureImage(t *testing.T) {
+	t.Helper()
+	buildOnce.Do(func() {
+		if err := buildImage(t); err != nil {
+			t.Fatalf("building the test image: %v", err)
+		}
+	})
+}
+
+func copyFile(from, to string) error {
+	content, err := os.ReadFile(from)
+	if err != nil {
+		return err
 	}
-	os.Exit(m.Run())
+	return os.WriteFile(to, content, 0o755)
 }
 
 // buildImage compiles the extension and a stub handler for linux/amd64 and bakes
 // them into the Lambda base image at the paths the platform expects.
-func buildImage() error {
+func buildImage(t *testing.T) error {
 	work, err := os.MkdirTemp("", "hny-rie")
 	if err != nil {
 		return err
@@ -69,7 +86,13 @@ func buildImage() error {
 		}
 	}
 
+	emulator := buildEmulator(t)
+	if err := copyFile(emulator, filepath.Join(work, "aws-lambda-rie")); err != nil {
+		return err
+	}
+
 	dockerfile := `FROM public.ecr.aws/lambda/provided:al2023
+COPY aws-lambda-rie /usr/local/bin/aws-lambda-rie
 COPY extension /opt/extensions/honeycomb-lambda-extension
 COPY bootstrap /var/runtime/bootstrap
 CMD ["bootstrap"]
@@ -89,13 +112,25 @@ CMD ["bootstrap"]
 // returns the invocation's response body alongside everything logged.
 func run(t *testing.T, env map[string]string) (response string, logs string) {
 	t.Helper()
+	_, response, logs = runWithSink(t, env)
+	return response, logs
+}
+
+// runWithSink starts the container with a stand-in Honeycomb API, invokes the
+// function once, and returns everything the extension delivered.
+func runWithSink(t *testing.T, env map[string]string) (*sink, string, string) {
+	t.Helper()
+	ensureImage(t)
+
+	deliveries := startSink(t)
 
 	args := []string{"run", "-d", "--name", containerName, "-p", hostPort + ":8080",
+		// host-gateway keeps the sink reachable where host.docker.internal is not
+		// resolved for us, such as Docker on Linux.
+		"--add-host", "host.docker.internal:host-gateway",
 		"-e", "LIBHONEY_API_KEY=abc123def456ghi789jkl012m",
 		"-e", "LIBHONEY_DATASET=rie-test-dataset",
-		// Nothing should be delivered, but point the publisher somewhere closed
-		// rather than at Honeycomb in case that assumption is ever wrong.
-		"-e", "LIBHONEY_API_HOST=http://127.0.0.1:1",
+		"-e", "LIBHONEY_API_HOST=http://host.docker.internal:" + deliveries.port(),
 		"-e", "HONEYCOMB_DEBUG=true",
 	}
 	for key, value := range env {
@@ -116,9 +151,10 @@ func run(t *testing.T, env map[string]string) (response string, logs string) {
 	// beforehand: the invoke is what causes the extension to be launched at all.
 	body := invokeWhenReady(t)
 
-	// Let the extension finish its post-invoke window before reading logs.
-	time.Sleep(2 * time.Second)
-	return body, containerLogs(t)
+	// Telemetry is delivered in the extension's post-invoke window, and batches
+	// are sent asynchronously after that.
+	time.Sleep(6 * time.Second)
+	return deliveries, body, containerLogs(t)
 }
 
 // invokeWhenReady posts an invocation, retrying until the emulator is listening.
@@ -149,7 +185,7 @@ func containerLogs(t *testing.T) string {
 func TestExtensionRegistersAndInvocationSucceeds(t *testing.T) {
 	response, logs := run(t, nil)
 
-	if !strings.Contains(response, "ok") {
+	if !strings.Contains(response, invokeResponse) {
 		t.Errorf("function did not return successfully: %q\nlogs:\n%s", response, logs)
 	}
 	for _, want := range []string{
@@ -160,31 +196,6 @@ func TestExtensionRegistersAndInvocationSucceeds(t *testing.T) {
 		if !strings.Contains(logs, want) {
 			t.Errorf("expected logs to contain %q\nlogs:\n%s", want, logs)
 		}
-	}
-	assertHealthy(t, logs)
-}
-
-// The emulator acknowledges a Telemetry API subscription with a 2xx whose body
-// says Telemetry.NotSupported, and then delivers nothing — the "non-committal
-// response" its own source describes. The extension has to keep working when
-// subscribed telemetry simply never arrives: keep processing INVOKE, and leave
-// the function unaffected.
-//
-// Note what this does not test. Subscribe only treats status >= 400 as an error,
-// so this path never produces a subscription error and cannot show what the
-// extension does with one. It also means the extension cannot presently tell an
-// accepted subscription from a silently ineffective one.
-func TestTelemetryNeverArrivingIsHarmless(t *testing.T) {
-	response, logs := run(t, nil)
-
-	if !strings.Contains(logs, "Telemetry.NotSupported") {
-		t.Skipf("emulator no longer reports Telemetry.NotSupported; it may now implement the API\nlogs:\n%s", logs)
-	}
-	if !strings.Contains(response, "ok") {
-		t.Errorf("undelivered telemetry must not break the function: %q", response)
-	}
-	if !strings.Contains(logs, "Received INVOKE event.") {
-		t.Errorf("extension stopped processing events\nlogs:\n%s", logs)
 	}
 	assertHealthy(t, logs)
 }
@@ -200,7 +211,7 @@ func TestManagedInstancesRegistration(t *testing.T) {
 	if !strings.Contains(logs, "registered, subscribed to [SHUTDOWN]") {
 		t.Errorf("expected a SHUTDOWN-only registration on managed instances\nlogs:\n%s", logs)
 	}
-	if !strings.Contains(response, "ok") {
+	if !strings.Contains(response, invokeResponse) {
 		t.Errorf("function did not return successfully: %q", response)
 	}
 	assertHealthy(t, logs)
@@ -219,6 +230,128 @@ func assertHealthy(t *testing.T, logs string) {
 	} {
 		if strings.Contains(logs, unwanted) {
 			t.Errorf("logs report %q\nlogs:\n%s", unwanted, logs)
+		}
+	}
+}
+
+// The whole point of the extension: a function writes OTLP to stdout and spans
+// arrive at Honeycomb. Every recognized payload shape is exercised here through
+// the real platform, which is the one thing unit tests cannot do.
+func TestTranslatesEveryPayloadShape(t *testing.T) {
+	deliveries, response, logs := runWithSink(t, nil)
+
+	if !strings.Contains(response, invokeResponse) {
+		t.Fatalf("function did not return successfully: %q\nlogs:\n%s", response, logs)
+	}
+	if len(deliveries.delivered()) == 0 {
+		t.Fatalf("the extension delivered nothing; the emulator may not be serving telemetry\nlogs:\n%s", logs)
+	}
+
+	byName := deliveries.byName()
+
+	t.Run("OTLP/JSON traces", func(t *testing.T) {
+		span, ok := byName["handler"]
+		if !ok {
+			t.Fatalf("no translated span named handler; delivered %d events", len(deliveries.delivered()))
+		}
+		if span.Dataset != "rie-func" {
+			t.Errorf("dataset = %q, want rie-func from service.name", span.Dataset)
+		}
+		if got := span.Data["trace.trace_id"]; got != "5b8efff798038103d269b633813fc60c" {
+			t.Errorf("trace.trace_id = %v", got)
+		}
+		if got := span.Data["span.kind"]; got != "server" {
+			t.Errorf("span.kind = %v, want server", got)
+		}
+		if got := span.Data["library.name"]; got != "rie-instrumentation" {
+			t.Errorf("library.name = %v", got)
+		}
+	})
+
+	t.Run("OTLP/JSON logs", func(t *testing.T) {
+		var found bool
+		for _, event := range deliveries.delivered() {
+			if event.Data["body"] == "captured log record" {
+				found = true
+				if event.Dataset != "rie-func" {
+					t.Errorf("dataset = %q, want rie-func", event.Dataset)
+				}
+				if got := event.Data["severity_text"]; got != "ERROR" {
+					t.Errorf("severity_text = %v", got)
+				}
+			}
+		}
+		if !found {
+			t.Error("the OTLP log record was not translated")
+		}
+	})
+
+	t.Run("otlp-stdout envelope", func(t *testing.T) {
+		// The envelope carries a second copy of the same span, so the direct
+		// payload and the compressed one together produce two.
+		if got := deliveries.spansNamed("handler"); got != 2 {
+			t.Errorf("spans named handler = %d, want 2 (one direct, one from the envelope)", got)
+		}
+	})
+
+	t.Run("libhoney envelope still works", func(t *testing.T) {
+		span, ok := byName["beeline-span"]
+		if !ok {
+			t.Fatal("the libhoney envelope was not unwrapped")
+		}
+		if span.Dataset != "rie-test-dataset" {
+			t.Errorf("dataset = %q, want the configured dataset", span.Dataset)
+		}
+		if _, nested := span.Data["data"]; nested {
+			t.Error("the envelope should be unwrapped, not nested")
+		}
+	})
+
+	t.Run("plain stdout is still a log line", func(t *testing.T) {
+		var found bool
+		for _, event := range deliveries.delivered() {
+			if record, ok := event.Data["record"].(string); ok && strings.Contains(record, "an ordinary log line") {
+				found = true
+				if event.Dataset != "rie-test-dataset" {
+					t.Errorf("dataset = %q, want the configured dataset", event.Dataset)
+				}
+			}
+		}
+		if !found {
+			t.Error("plain stdout did not arrive as a record field")
+		}
+	})
+
+	t.Run("platform telemetry is forwarded", func(t *testing.T) {
+		seen := map[string]bool{}
+		for _, event := range deliveries.delivered() {
+			if kind, ok := event.Data["lambda_extension.type"].(string); ok {
+				seen[kind] = true
+			}
+		}
+		for _, kind := range []string{"platform.start", "platform.runtimeDone", "platform.initStart"} {
+			if !seen[kind] {
+				t.Errorf("expected %s to be forwarded; saw %v", kind, seen)
+			}
+		}
+	})
+}
+
+// Translated telemetry must route by service.name while everything else stays in
+// the configured dataset. Getting this wrong would scatter a customer's data.
+func TestOnlyTranslatedTelemetryChangesDataset(t *testing.T) {
+	deliveries, _, _ := runWithSink(t, nil)
+
+	for _, event := range deliveries.delivered() {
+		_, isSpan := event.Data["trace.trace_id"]
+		_, isLogRecord := event.Data["severity_text"]
+		translated := isSpan || isLogRecord
+
+		switch {
+		case translated && event.Dataset != "rie-func":
+			t.Errorf("translated telemetry went to %q, want rie-func", event.Dataset)
+		case !translated && event.Dataset != "rie-test-dataset":
+			t.Errorf("untranslated event went to %q, want rie-test-dataset: %v", event.Dataset, event.Data)
 		}
 	}
 }
