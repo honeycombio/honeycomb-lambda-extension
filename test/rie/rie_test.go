@@ -30,6 +30,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -66,8 +67,13 @@ func copyFile(from, to string) error {
 	return os.WriteFile(to, content, 0o755)
 }
 
-// buildImage compiles the extension and a stub handler for linux/amd64 and bakes
-// them into the Lambda base image at the paths the platform expects.
+// buildImage compiles the extension and a test handler for the host's
+// architecture and bakes them into the Lambda base image at the paths the
+// platform expects.
+//
+// The host's architecture rather than a fixed one, because both arm64 and
+// x86_64 layers are published and each deserves exercising. It also means this
+// runs natively on an arm64 workstation instead of under emulation.
 func buildImage(t *testing.T) error {
 	work, err := os.MkdirTemp("", "hny-rie")
 	if err != nil {
@@ -80,7 +86,7 @@ func buildImage(t *testing.T) error {
 		{"./handler", "bootstrap"},
 	} {
 		build := exec.Command("go", "build", "-o", filepath.Join(work, target.out), target.pkg)
-		build.Env = append(os.Environ(), "GOOS=linux", "GOARCH=amd64", "CGO_ENABLED=0")
+		build.Env = append(os.Environ(), "GOOS=linux", "GOARCH="+runtime.GOARCH, "CGO_ENABLED=0")
 		if out, err := build.CombinedOutput(); err != nil {
 			return fmt.Errorf("building %s: %v: %s", target.pkg, err, out)
 		}

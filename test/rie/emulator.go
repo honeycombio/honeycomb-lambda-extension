@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -41,7 +42,9 @@ func buildEmulator(t *testing.T) string {
 	t.Helper()
 	repo, ref := emulatorSource()
 
-	cache := filepath.Join(os.TempDir(), "hny-lambda-ext-emulator", ref)
+	// Keyed by architecture as well as ref, since the binary is built for the
+	// container and a cache shared across architectures would be wrong.
+	cache := filepath.Join(os.TempDir(), "hny-lambda-ext-emulator", ref+"-"+runtime.GOARCH)
 	binary := filepath.Join(cache, "aws-lambda-rie")
 	if _, err := os.Stat(binary); err == nil {
 		return binary
@@ -62,7 +65,7 @@ func buildEmulator(t *testing.T) string {
 
 	build := exec.Command("go", "build", "-o", binary, "./cmd/aws-lambda-rie")
 	build.Dir = checkout
-	build.Env = append(os.Environ(), "GOOS=linux", "GOARCH=amd64", "CGO_ENABLED=0")
+	build.Env = append(os.Environ(), "GOOS=linux", "GOARCH="+runtime.GOARCH, "CGO_ENABLED=0")
 	if out, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("building the emulator: %v: %s", err, out)
 	}
