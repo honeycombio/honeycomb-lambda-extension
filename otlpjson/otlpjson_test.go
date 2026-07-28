@@ -5,15 +5,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/honeycombio/husky/otlp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// An Environments & Services key. Keys of this length let husky derive the
-// destination dataset from service.name.
+// husky treats a key as classic only if it is 32 characters of lowercase hex;
+// anything else routes by service.name.
 const esAPIKey = "abc123def456ghi789jkl012m"
-
-// A classic key, which pins everything to the configured dataset.
 const classicAPIKey = "0123456789abcdef0123456789abcdef"
 
 const tracesRecord = `{"resourceSpans":[{"resource":{"attributes":[
@@ -118,18 +117,71 @@ func TestTranslateErrors(t *testing.T) {
 		record  string
 		apiKey  string
 		dataset string
+		wantErr error
 	}{
-		{"malformed OTLP", SignalTraces, `{"resourceSpans":"not an array"}`, esAPIKey, "ds"},
-		{"signal mismatch", SignalLogs, tracesRecord, esAPIKey, "ds"},
-		{"no signal", SignalNone, tracesRecord, esAPIKey, "ds"},
-		{"missing API key", SignalTraces, tracesRecord, "", "ds"},
-		{"classic key without dataset", SignalTraces, tracesRecord, classicAPIKey, ""},
+		{"malformed OTLP", SignalTraces, `{"resourceSpans":"not an array"}`, esAPIKey, "ds", otlp.ErrFailedParseBody},
+		{"signal mismatch", SignalLogs, tracesRecord, esAPIKey, "ds", otlp.ErrFailedParseBody},
+		{"missing API key", SignalTraces, tracesRecord, "", "ds", otlp.ErrMissingAPIKeyHeader},
+		{"classic key without dataset", SignalTraces, tracesRecord, classicAPIKey, "", otlp.ErrMissingDatasetHeader},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := Translate(context.Background(), tc.signal, []byte(tc.record), tc.apiKey, tc.dataset)
-			assert.Error(t, err)
+			assert.ErrorIs(t, err, tc.wantErr)
 		})
 	}
+
+	t.Run("no signal", func(t *testing.T) {
+		_, err := Translate(context.Background(), SignalNone, []byte(tracesRecord), esAPIKey, "ds")
+		assert.Error(t, err, "callers must not ask for a translation of a non-OTLP record")
+	})
+}
+
+// A record carrying both signals is malformed. Traces win; pinned here so the
+// choice is visible if it ever changes.
+func TestDetectPrefersTracesWhenBothPresent(t *testing.T) {
+	assert.Equal(t, SignalTraces, Detect([]byte(`{"resourceSpans":[],"resourceLogs":[]}`)))
+}
+
+// husky groups events by dataset, so one line naming two services must produce
+// two batches rather than collapsing into one.
+func TestTranslateSplitsResourcesByService(t *testing.T) {
+	const twoServices = `{"resourceSpans":[
+		{"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"svc-a"}}]},
+		"scopeSpans":[{"spans":[{"traceId":"5b8efff798038103d269b633813fc60c",
+		"spanId":"eee19b7ec3c1b174","name":"a","startTimeUnixNano":"1753000000000000000",
+		"endTimeUnixNano":"1753000000001000000"}]}]},
+		{"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"svc-b"}}]},
+		"scopeSpans":[{"spans":[{"traceId":"5b8efff798038103d269b633813fc60c",
+		"spanId":"eee19b7ec3c1b175","name":"b","startTimeUnixNano":"1753000000000000000",
+		"endTimeUnixNano":"1753000000001000000"}]}]}]}`
+
+	batches, err := Translate(context.Background(), SignalTraces, []byte(twoServices), esAPIKey, "fallback-dataset")
+	require.NoError(t, err)
+
+	datasets := make(map[string]int)
+	for _, batch := range batches {
+		datasets[batch.Dataset] += len(batch.Events)
+	}
+	assert.Equal(t, map[string]int{"svc-a": 1, "svc-b": 1}, datasets)
+}
+
+// snake_case is legal OTLP JSON, and husky has to translate it, not just pass
+// Detect.
+func TestTranslateSnakeCase(t *testing.T) {
+	const snakeCase = `{"resource_spans":[{"resource":{"attributes":[
+		{"key":"service.name","value":{"string_value":"my-func"}}]},
+		"scope_spans":[{"spans":[{"trace_id":"5b8efff798038103d269b633813fc60c",
+		"span_id":"eee19b7ec3c1b174","name":"handler",
+		"start_time_unix_nano":"1753000000000000000",
+		"end_time_unix_nano":"1753000000123000000"}]}]}]}`
+
+	batches, err := Translate(context.Background(), SignalTraces, []byte(snakeCase), esAPIKey, "fallback-dataset")
+	require.NoError(t, err)
+	require.Len(t, batches, 1)
+	require.Len(t, batches[0].Events, 1)
+	assert.Equal(t, "my-func", batches[0].Dataset)
+	assert.Equal(t, "handler", batches[0].Events[0].Attributes["name"])
+	assert.EqualValues(t, 123, batches[0].Events[0].Attributes["duration_ms"])
 }

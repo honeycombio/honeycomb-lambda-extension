@@ -2,8 +2,8 @@
 // OpenTelemetry SDK and translates them into Honeycomb events.
 //
 // Translation is delegated to husky, the same library Honeycomb's OTLP ingest
-// uses, so spans that arrive this way are indistinguishable from spans sent to
-// the OTLP endpoint directly.
+// uses, so field naming and dataset routing match what the OTLP endpoint would
+// have produced for the same payload.
 package otlpjson
 
 import (
@@ -20,34 +20,34 @@ import (
 type Signal int
 
 const (
-	// SignalNone means the record is not an OTLP export request.
 	SignalNone Signal = iota
 	SignalTraces
 	SignalLogs
 )
 
-// envelope holds only the top-level keys that identify an export request.
-// Both the camelCase and snake_case spellings are accepted, because the OTLP
-// JSON encoding permits either.
+// Both spellings of each key are accepted, because the OTLP JSON encoding
+// permits either.
 type envelope struct {
-	ResourceSpans     json.RawMessage `json:"resourceSpans"`
-	ResourceSpansSnek json.RawMessage `json:"resource_spans"`
-	ResourceLogs      json.RawMessage `json:"resourceLogs"`
-	ResourceLogsSnek  json.RawMessage `json:"resource_logs"`
+	ResourceSpans          json.RawMessage `json:"resourceSpans"`
+	ResourceSpansSnakeCase json.RawMessage `json:"resource_spans"`
+	ResourceLogs           json.RawMessage `json:"resourceLogs"`
+	ResourceLogsSnakeCase  json.RawMessage `json:"resource_logs"`
 }
 
-// Detect reports which OTLP signal, if any, a stdout record carries. The
-// presence of a resourceSpans or resourceLogs key is treated as definitive:
-// no other producer of function stdout uses those names at the top level.
+// Detect reports which OTLP signal, if any, a stdout record carries, keying off
+// a top-level resourceSpans or resourceLogs field.
+//
+// An export request holds one signal, so a record carrying both is malformed;
+// traces win and the log records are ignored.
 func Detect(record []byte) Signal {
 	var env envelope
 	if err := json.Unmarshal(record, &env); err != nil {
 		return SignalNone
 	}
 	switch {
-	case env.ResourceSpans != nil || env.ResourceSpansSnek != nil:
+	case env.ResourceSpans != nil || env.ResourceSpansSnakeCase != nil:
 		return SignalTraces
-	case env.ResourceLogs != nil || env.ResourceLogsSnek != nil:
+	case env.ResourceLogs != nil || env.ResourceLogsSnakeCase != nil:
 		return SignalLogs
 	default:
 		return SignalNone

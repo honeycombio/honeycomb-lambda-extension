@@ -80,54 +80,51 @@ func handler(client eventCreator, config extension.Config) http.HandlerFunc {
 				continue
 			}
 
-			switch record := record.(type) {
-			case string:
-				// Plain-text log format: the line's own bytes are the payload.
-				if sendOTLP(client, config, msg, []byte(record)) {
-					continue
-				}
-				event := newEvent(client, msg)
-				addRecordString(event, msg, record)
-				sendEvent(event)
-			case map[string]interface{}:
-				if inner, ok := record["message"].(string); ok && record["data"] == nil {
-					// JSON-log-format wrapper around a non-JSON line; unwrap and
-					// handle the original line as if it had arrived unwrapped.
-					if sendOTLP(client, config, msg, []byte(inner)) {
-						continue
-					}
-					event := newEvent(client, msg)
-					addRecordString(event, msg, inner)
-					sendEvent(event)
-				} else {
-					// JSON log format: pass the record's original bytes along, so
-					// that a translated payload is byte-identical to what the
-					// function wrote.
-					if sendOTLP(client, config, msg, msg.Record) {
-						continue
-					}
-					event := newEvent(client, msg)
-					addRecordJSON(event, msg, record)
-					sendEvent(event)
-				}
-			default:
-				event := newEvent(client, msg)
+			line, isLine := recordLine(record)
+			payload := []byte(msg.Record)
+			if isLine {
+				payload = []byte(line)
+			}
+			if sendOTLP(client, config, msg, payload) {
+				continue
+			}
+
+			event := newEvent(client, msg)
+			if isLine {
+				addRecordString(event, msg, line)
+			} else if fields, ok := record.(map[string]interface{}); ok {
+				addRecordJSON(event, msg, fields)
+			} else {
 				event.Timestamp = parseMessageTimestamp(event, msg)
 				event.Add(record)
-				sendEvent(event)
 			}
+			sendEvent(event)
 		}
 	}
 }
 
-// newEvent starts an event for a log message, tagged with the message type.
+// recordLine returns the stdout line a record holds, if it holds a line rather
+// than structured data: the record itself in plain-text log format, or the
+// message field of the {timestamp, level, message} wrapper that JSON log format
+// puts around a non-JSON line.
+func recordLine(record interface{}) (string, bool) {
+	switch record := record.(type) {
+	case string:
+		return record, true
+	case map[string]interface{}:
+		if message, ok := record["message"].(string); ok && record["data"] == nil {
+			return message, true
+		}
+	}
+	return "", false
+}
+
 func newEvent(client eventCreator, msg LogMessage) *libhoney.Event {
 	event := client.NewEvent()
 	event.AddField("lambda_extension.type", msg.Type)
 	return event
 }
 
-// sendEvent enqueues a finished event for delivery to Honeycomb.
 func sendEvent(event *libhoney.Event) {
 	event.Metadata, _ = event.Fields()["name"]
 	event.SendPresampled()

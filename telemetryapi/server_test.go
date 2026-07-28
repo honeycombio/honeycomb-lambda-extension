@@ -99,12 +99,18 @@ func postMessages(t *testing.T, messages []LogMessage) []*transmission.Event {
 }
 
 func postMessagesWithConfig(t *testing.T, messages []LogMessage, config extension.Config) []*transmission.Event {
-	rr := httptest.NewRecorder()
 	b, err := json.Marshal(messages)
 	if err != nil {
 		t.Error(err)
 	}
-	req, err := http.NewRequest("POST", "/", bytes.NewBuffer(b))
+	return postBody(t, string(b), config)
+}
+
+// postBody posts a raw Telemetry API payload, for shapes that a []LogMessage
+// can't express.
+func postBody(t *testing.T, body string, config extension.Config) []*transmission.Event {
+	rr := httptest.NewRecorder()
+	req, err := http.NewRequest("POST", "/", bytes.NewBufferString(body))
 	if err != nil {
 		t.Error(err)
 	}
