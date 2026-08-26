@@ -118,11 +118,26 @@ func recordLine(record interface{}) (string, bool) {
 	case string:
 		return record, true
 	case map[string]interface{}:
-		if message, ok := record["message"].(string); ok && record["data"] == nil {
-			return message, true
-		}
+		return wrappedLine(record)
 	}
 	return "", false
+}
+
+// wrappedLine reports the line a JSON-log-format wrapper carries. The wrapper is
+// exactly {timestamp, level, message}, plus a requestId from the managed
+// runtimes. A function's own structured log can carry a message field too, and
+// unwrapping that would keep the message and silently discard every field
+// beside it, so only the full wrapper shape unwraps.
+func wrappedLine(record map[string]interface{}) (string, bool) {
+	for key := range record {
+		switch key {
+		case "message", "timestamp", "level", "requestId":
+		default:
+			return "", false
+		}
+	}
+	message, ok := record["message"].(string)
+	return message, ok
 }
 
 // newEvent starts an event, marking which kind of telemetry it came from.
