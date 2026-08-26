@@ -38,13 +38,28 @@ type Payload struct {
 
 const jsonContentType = "application/json"
 
+// presence records that a key was there without keeping its value, so
+// recognizing a signal costs a scan rather than a copy of the whole export
+// request. A key present but null still counts as present, matching how the
+// signal keys are used: their presence names the signal, their contents are the
+// translator's business.
+//
+// It only ever latches true, so an exportRequest must be decoded once and
+// discarded rather than reused across records.
+type presence bool
+
+func (p *presence) UnmarshalJSON([]byte) error {
+	*p = true
+	return nil
+}
+
 // Both spellings of each key are accepted, because the OTLP JSON encoding
 // permits either.
 type exportRequest struct {
-	ResourceSpans          json.RawMessage `json:"resourceSpans"`
-	ResourceSpansSnakeCase json.RawMessage `json:"resource_spans"`
-	ResourceLogs           json.RawMessage `json:"resourceLogs"`
-	ResourceLogsSnakeCase  json.RawMessage `json:"resource_logs"`
+	ResourceSpans          presence `json:"resourceSpans"`
+	ResourceSpansSnakeCase presence `json:"resource_spans"`
+	ResourceLogs           presence `json:"resourceLogs"`
+	ResourceLogsSnakeCase  presence `json:"resource_logs"`
 
 	// Set only by the otlp-stdout family of exporters, which wrap a compressed
 	// export request rather than writing OTLP/JSON directly.
@@ -73,14 +88,13 @@ func Parse(record []byte) (*Payload, error) {
 		return parseEnvelope(request)
 	}
 
-	switch {
-	case request.ResourceSpans != nil || request.ResourceSpansSnakeCase != nil:
+	if request.ResourceSpans || request.ResourceSpansSnakeCase {
 		return &Payload{Signal: SignalTraces, Body: record, ContentType: jsonContentType}, nil
-	case request.ResourceLogs != nil || request.ResourceLogsSnakeCase != nil:
-		return &Payload{Signal: SignalLogs, Body: record, ContentType: jsonContentType}, nil
-	default:
-		return nil, nil
 	}
+	if request.ResourceLogs || request.ResourceLogsSnakeCase {
+		return &Payload{Signal: SignalLogs, Body: record, ContentType: jsonContentType}, nil
+	}
+	return nil, nil
 }
 
 // parseEnvelope unwraps an otlp-stdout envelope. The content type and encoding

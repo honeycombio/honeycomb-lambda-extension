@@ -361,6 +361,29 @@ func TestJSONFormatRecordObjects(t *testing.T) {
 		assert.Equal(t, "A basic message to STDOUT", event.Data["record"])
 	})
 
+	t.Run("a null message is not a wrapped line", func(t *testing.T) {
+		// Deciding the wrapper from raw bytes means asking whether the message
+		// decoded into a string, and unmarshalling a JSON null into a string is
+		// a no-op that reports no error. Without rejecting null explicitly this
+		// would unwrap to an empty line and discard the fields beside it.
+		events := postMessages(t, []LogMessage{{
+			Time: "2020-11-03T21:10:25.150Z",
+			Type: "function",
+			Record: rec(`{
+				"timestamp": "2020-11-03T21:10:25.100Z",
+				"level": "INFO",
+				"message": null
+			}`),
+		}})
+		event := events[0]
+		assert.NotContains(t, event.Data, "record", "a null message must not unwrap to an empty line")
+		assert.Equal(t, "INFO", event.Data["level"])
+		assert.Contains(t, event.Data, "timestamp")
+		ts, _ := time.Parse(time.RFC3339, "2020-11-03T21:10:25.100Z")
+		assert.Equal(t, ts.String(), event.Timestamp.String(),
+			"the timestamp still comes from the record, not the message envelope")
+	})
+
 	t.Run("wrapped message containing JSON is unwrapped and parsed", func(t *testing.T) {
 		events := postMessages(t, []LogMessage{{
 			Time: epochTimestamp,

@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"math"
+	"strings"
 	"testing"
 	"time"
 
@@ -200,6 +201,45 @@ func TestUndecodableRecordIsReportedNotDropped(t *testing.T) {
 	require.Len(t, events, 1, "the message should still reach Honeycomb")
 	assert.Equal(t, `{"n":1e999}`, events[0].Data["record"],
 		"the record it could not decode is carried as the line it was")
+}
+
+// Detection now runs on the record's raw bytes, ahead of the decode into
+// interface{} that the ordinary log path performs. That reorder is observable:
+// a record that cannot decode into interface{} -- a number outside float64's
+// range is the only way -- used to be reported as a raw line without ever being
+// offered to the translator. An export request carrying one is now recognized.
+// Pinned because it is a considered consequence of the reorder rather than an
+// accident of it.
+func TestUndecodableNumbersDoNotHideAnExportRequest(t *testing.T) {
+	t.Run("envelope carrying one is still translated", func(t *testing.T) {
+		envelope := otlpStdoutEnvelopeFixture(t)
+		withJunk := strings.TrimSuffix(envelope, "}") + `,"junk":1e400}`
+
+		events := postMessagesWithConfig(t, []LogMessage{{
+			Time:   "2025-07-20T08:26:40.000Z",
+			Type:   "function",
+			Record: rec(withJunk),
+		}}, otlpConfig)
+
+		require.NotEmpty(t, events)
+		assert.Equal(t, "my-func", events[0].Dataset,
+			"the payload translates and routes by service.name")
+	})
+
+	t.Run("a bare export request carrying one does not translate", func(t *testing.T) {
+		// husky rejects unknown top-level fields, so this one falls through to
+		// the log path. Pinned so that a future loosening there is a visible
+		// change rather than a silent one.
+		events := postMessagesWithConfig(t, []LogMessage{{
+			Time:   "2025-07-20T08:26:40.000Z",
+			Type:   "function",
+			Record: rec(strings.TrimSuffix(twoSpanExport, "}") + `,"junk":1e400}`),
+		}}, otlpConfig)
+
+		require.Len(t, events, 1)
+		assert.Contains(t, events[0].Data, "record", "reported as an ordinary log line")
+		assert.Equal(t, "configured-dataset", events[0].Dataset)
+	})
 }
 
 // A panic in one message must not take the rest of the batch with it.

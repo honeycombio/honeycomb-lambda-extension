@@ -1,6 +1,7 @@
 package telemetryapi
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -63,71 +64,105 @@ func handler(client eventCreator, config extension.Config) http.HandlerFunc {
 			return
 		}
 
-		// Iterate through the batch of log messages received. A function log
-		// message's Record holds whatever the function wrote to stdout, in one
-		// of two encodings. With plain-text log format (and all Logs API /
-		// pre-2022-12-13 schema deliveries), Record is a string that may itself
-		// contain JSON. With JSON log format, Lambda pre-parses the line:
-		// a line that was already JSON arrives as that object verbatim, and a
-		// non-JSON line arrives wrapped as {timestamp, level, message}.
-		// Normalize all of these into the same structured handling so a span
-		// emitted by libhoney/beeline parses identically regardless of the
-		// function's logging config.
 		for _, msg := range logs {
-			// A record that is absent or null leaves record nil, and the message
-			// still reaches Honeycomb carrying its type and timestamp.
-			var record interface{}
-			if len(msg.Record) > 0 {
-				if err := json.Unmarshal(msg.Record, &record); err != nil {
-					// Syntactically valid JSON can still fail to decode: a
-					// number beyond float64's range, for one. Every message
-					// the platform delivers should reach Honeycomb in some
-					// form, so report the record as the raw line it was rather
-					// than dropping it.
-					log.Warn("Could not unmarshal record", err)
-					event := newEvent(client, msg)
-					event.Timestamp = parseMessageTimestamp(event, msg)
-					event.AddField("record", string(msg.Record))
-					sendEvent(event)
-					continue
-				}
-			}
-
-			line, isLine := recordLine(record)
-			payload := []byte(msg.Record)
-			if isLine {
-				payload = []byte(line)
-			}
-			if sendOTLP(client, config, msg, payload) {
-				continue
-			}
-
-			event := newEvent(client, msg)
-			if isLine {
-				addRecordString(event, msg, line)
-			} else if fields, ok := record.(map[string]interface{}); ok {
-				addRecordJSON(event, msg, fields)
-			} else {
-				event.Timestamp = parseMessageTimestamp(event, msg)
-				if record != nil {
-					event.Add(record)
-				}
-			}
-			sendEvent(event)
+			handleMessage(client, config, msg)
 		}
 	}
 }
 
-// recordLine returns the stdout line a record holds, if it holds a line rather
+// handleMessage turns one message from the batch into events. A record holding
+// an OTLP export request expands into one event per span or log record; every
+// other record becomes a single event.
+//
+// A function log message's Record holds whatever the function wrote to stdout,
+// in one of two encodings. With plain-text log format (and all Logs API /
+// pre-2022-12-13 schema deliveries), Record is a string that may itself
+// contain JSON. With JSON log format, Lambda pre-parses the line:
+// a line that was already JSON arrives as that object verbatim, and a
+// non-JSON line arrives wrapped as {timestamp, level, message}.
+// Normalize all of these into the same structured handling so a span
+// emitted by libhoney/beeline parses identically regardless of the
+// function's logging config.
+func handleMessage(client eventCreator, config extension.Config, msg LogMessage) {
+	line, isLine := stdoutLine(msg.Record)
+	stdout := msg.Record
+	if isLine {
+		stdout = json.RawMessage(line)
+	}
+
+	if sendOTLP(client, config, msg, stdout) {
+		return
+	}
+
+	event := newEvent(client, msg)
+	if isLine {
+		addRecordString(event, msg, line)
+		sendEvent(event)
+		return
+	}
+
+	// A record that is absent or null leaves record nil, and the message still
+	// reaches Honeycomb carrying its type and timestamp.
+	var record interface{}
+	if len(msg.Record) > 0 {
+		if err := json.Unmarshal(msg.Record, &record); err != nil {
+			// Syntactically valid JSON can still fail to decode: a number
+			// beyond float64's range, for one. Every message the platform
+			// delivers should reach Honeycomb in some form, so report the
+			// record as the raw line it was rather than dropping it.
+			log.Warn("Could not unmarshal record", err)
+			event.Timestamp = parseMessageTimestamp(event, msg)
+			event.AddField("record", string(msg.Record))
+			sendEvent(event)
+			return
+		}
+	}
+
+	if fields, ok := record.(map[string]interface{}); ok {
+		addRecordJSON(event, msg, fields)
+	} else {
+		event.Timestamp = parseMessageTimestamp(event, msg)
+		if record != nil {
+			event.Add(record)
+		}
+	}
+	sendEvent(event)
+}
+
+var messageKey = []byte(`"message"`)
+
+// stdoutLine returns the stdout line a record holds, if it holds a line rather
 // than structured data: the record itself in plain-text log format, or the
 // message field of the {timestamp, level, message} wrapper that JSON log format
 // puts around a non-JSON line.
-func recordLine(record interface{}) (string, bool) {
-	switch record := record.(type) {
-	case string:
-		return record, true
-	case map[string]interface{}:
-		return wrappedLine(record)
+//
+// Decided from the raw bytes rather than a decoded record, so that an export
+// request reaches the translator without first being built into an object graph
+// that is then discarded.
+func stdoutLine(record json.RawMessage) (string, bool) {
+	switch firstToken(record) {
+	case '"':
+		var line string
+		if err := json.Unmarshal(record, &line); err != nil {
+			return "", false
+		}
+		return line, true
+	case '{':
+		// A byte scan, so it errs in both directions and neither is a
+		// correctness problem. A payload merely containing the key -- an OTLP
+		// log record with a message attribute, say -- still takes the decode
+		// below and is rejected by the shape check, so the saving is real only
+		// for records that never mention it. A wrapper that spelled the key
+		// with an escape would be missed here, which the platform that
+		// generates the wrapper does not do.
+		if !bytes.Contains(record, messageKey) {
+			return "", false
+		}
+		var fields map[string]json.RawMessage
+		if err := json.Unmarshal(record, &fields); err != nil {
+			return "", false
+		}
+		return wrappedLine(fields)
 	}
 	return "", false
 }
@@ -137,16 +172,44 @@ func recordLine(record interface{}) (string, bool) {
 // runtimes. A function's own structured log can carry a message field too, and
 // unwrapping that would keep the message and silently discard every field
 // beside it, so only the full wrapper shape unwraps.
-func wrappedLine(record map[string]interface{}) (string, bool) {
-	for key := range record {
+func wrappedLine(fields map[string]json.RawMessage) (string, bool) {
+	for key := range fields {
 		switch key {
 		case "message", "timestamp", "level", "requestId":
 		default:
 			return "", false
 		}
 	}
-	message, ok := record["message"].(string)
-	return message, ok
+	// A null message is rejected explicitly, because unmarshalling a JSON null
+	// into a string is a no-op that reports no error: without this it would
+	// unwrap to an empty line and discard the record.
+	if isNull(fields["message"]) {
+		return "", false
+	}
+	var message string
+	if err := json.Unmarshal(fields["message"], &message); err != nil {
+		return "", false
+	}
+	return message, true
+}
+
+// isNull reports whether a field is absent or explicitly null, which the wrapper
+// check treats alike.
+func isNull(value json.RawMessage) bool {
+	return len(value) == 0 || bytes.Equal(value, []byte("null"))
+}
+
+// firstToken returns the first meaningful byte of a JSON value, which is enough
+// to tell a string from an object without decoding either.
+func firstToken(value json.RawMessage) byte {
+	for _, b := range value {
+		switch b {
+		case ' ', '\t', '\r', '\n':
+		default:
+			return b
+		}
+	}
+	return 0
 }
 
 // newEvent starts an event, marking which kind of telemetry it came from.
@@ -247,10 +310,10 @@ func addRecordJSON(event *libhoney.Event, msg LogMessage, jsonRecord map[string]
 	switch data := jsonRecord["data"].(type) {
 	case map[string]interface{}:
 		// data key contains a map, likely emitted by a Beeline's libhoney, so add the fields from it
-		event.Add(data)
+		event.AddFields(data)
 	default:
 		// data is not a map, so treat the record as flat JSON adding all keys as fields
-		event.Add(jsonRecord)
+		event.AddFields(jsonRecord)
 	}
 	event.SampleRate = parseSampleRate(jsonRecord)
 }
