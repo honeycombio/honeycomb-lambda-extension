@@ -46,17 +46,27 @@ const (
 	hostPort      = "9101"
 )
 
-// The image is built once, by whichever test needs it first, because building
-// the emulator needs a *testing.T to skip on when the network is unavailable.
-var buildOnce sync.Once
+// The image is built once, by whichever test needs it first. The outcome is
+// recorded and replayed for every caller: skipping or failing from inside a
+// sync.Once marks the build done while leaving nothing built, so every later
+// test would fail against a missing image instead of reporting the cause.
+var (
+	buildOnce sync.Once
+	buildSkip string
+	buildErr  error
+)
 
 func ensureImage(t *testing.T) {
 	t.Helper()
 	buildOnce.Do(func() {
-		if err := buildImage(t); err != nil {
-			t.Fatalf("building the test image: %v", err)
-		}
+		buildSkip, buildErr = buildImage()
 	})
+	if buildErr != nil {
+		t.Fatalf("building the test image: %v", buildErr)
+	}
+	if buildSkip != "" {
+		t.Skip(buildSkip)
+	}
 }
 
 func copyFile(from, to string) error {
@@ -69,15 +79,16 @@ func copyFile(from, to string) error {
 
 // buildImage compiles the extension and a test handler for the host's
 // architecture and bakes them into the Lambda base image at the paths the
-// platform expects.
+// platform expects. A non-empty skipReason means the image could not be built
+// for a reason that is not the extension's fault, such as being offline.
 //
 // The host's architecture rather than a fixed one, because both arm64 and
 // x86_64 layers are published and each deserves exercising. It also means this
 // runs natively on an arm64 workstation instead of under emulation.
-func buildImage(t *testing.T) error {
+func buildImage() (skipReason string, err error) {
 	work, err := os.MkdirTemp("", "hny-rie")
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer os.RemoveAll(work)
 
@@ -88,13 +99,16 @@ func buildImage(t *testing.T) error {
 		build := exec.Command("go", "build", "-o", filepath.Join(work, target.out), target.pkg)
 		build.Env = append(os.Environ(), "GOOS=linux", "GOARCH="+runtime.GOARCH, "CGO_ENABLED=0")
 		if out, err := build.CombinedOutput(); err != nil {
-			return fmt.Errorf("building %s: %v: %s", target.pkg, err, out)
+			return "", fmt.Errorf("building %s: %v: %s", target.pkg, err, out)
 		}
 	}
 
-	emulator := buildEmulator(t)
+	emulator, skipReason, err := buildEmulator()
+	if skipReason != "" || err != nil {
+		return skipReason, err
+	}
 	if err := copyFile(emulator, filepath.Join(work, "aws-lambda-rie")); err != nil {
-		return err
+		return "", err
 	}
 
 	dockerfile := `FROM public.ecr.aws/lambda/provided:al2023
@@ -104,14 +118,14 @@ COPY bootstrap /var/runtime/bootstrap
 CMD ["bootstrap"]
 `
 	if err := os.WriteFile(filepath.Join(work, "Dockerfile"), []byte(dockerfile), 0o644); err != nil {
-		return err
+		return "", err
 	}
 
 	build := exec.Command("docker", "build", "-q", "-t", image, work)
 	if out, err := build.CombinedOutput(); err != nil {
-		return fmt.Errorf("docker build: %v: %s", err, out)
+		return "", fmt.Errorf("docker build: %v: %s", err, out)
 	}
-	return nil
+	return "", nil
 }
 
 // run starts the container with extra environment, invokes the function once, and
