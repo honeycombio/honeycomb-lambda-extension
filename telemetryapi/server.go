@@ -176,8 +176,7 @@ func sendOTLP(client eventCreator, config extension.Config, msg LogMessage, reco
 			event := newEvent(client, msg)
 			event.Dataset = batch.Dataset
 			event.Timestamp = translated.Timestamp
-			// husky guarantees a sample rate of at least 1, so this cannot wrap.
-			event.SampleRate = uint(translated.SampleRate)
+			event.SampleRate = sampleRate(translated.SampleRate)
 			event.Add(translated.Attributes)
 			sendEvent(event)
 			sent++
@@ -191,6 +190,18 @@ func sendOTLP(client eventCreator, config extension.Config, msg LogMessage, reco
 		return false
 	}
 	return true
+}
+
+// sampleRate converts the rate husky derived into the one libhoney takes,
+// enforcing a floor that husky does not. A sample rate is meaningless below 1,
+// and a non-positive one converted to an unsigned type becomes an
+// astronomically large weight rather than a small one, so every event in the
+// batch would be counted as millions.
+func sampleRate(derived int32) uint {
+	if derived < 1 {
+		return 1
+	}
+	return uint(derived)
 }
 
 // addRecordString populates event from a raw log line, parsing it as JSON when

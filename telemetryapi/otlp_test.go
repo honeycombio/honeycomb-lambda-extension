@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"encoding/base64"
 	"encoding/json"
+	"math"
 	"testing"
 	"time"
 
@@ -233,6 +234,50 @@ func TestOTLPSampleRateReachesTheEvent(t *testing.T) {
 	require.Len(t, events, 1)
 	assert.EqualValues(t, 100, events[0].SampleRate)
 	assert.NotContains(t, events[0].Data, "sampleRate", "husky consumes the attribute")
+}
+
+// husky does not clamp every rate it derives, so the conversion to libhoney's
+// unsigned rate is where a bad value has to be stopped.
+func TestSampleRateFloor(t *testing.T) {
+	testCases := []struct {
+		derived int32
+		want    uint
+	}{
+		{-1, 1},
+		{0, 1},
+		{1, 1},
+		{100, 100},
+		{math.MaxInt32, math.MaxInt32},
+	}
+
+	for _, tc := range testCases {
+		assert.EqualValues(t, tc.want, sampleRate(tc.derived),
+			"a rate of %d must not become a weight of %d", tc.derived, uint(tc.derived))
+	}
+}
+
+// The rate husky derives from a sampling threshold is the path that reaches the
+// conversion unclamped: an adjusted count above int32 overflows the conversion
+// husky makes, and Go leaves the result of an out-of-range float conversion to
+// the architecture. On amd64 it becomes negative, which is how this reaches the
+// floor above; on arm64 the same conversion saturates, so this payload alone
+// does not prove the floor is needed and TestSampleRateFloor does.
+func TestOTLPSampleRateFromAThresholdIsUsable(t *testing.T) {
+	const thresholdSampled = `{"resourceSpans":[{"resource":{"attributes":[
+		{"key":"service.name","value":{"stringValue":"my-func"}}]},
+		"scopeSpans":[{"spans":[{"traceId":"5b8efff798038103d269b633813fc60c",
+		"spanId":"eee19b7ec3c1b174","name":"handler","traceState":"ot=th:ffffffffffffff",
+		"startTimeUnixNano":"1753000000000000000","endTimeUnixNano":"1753000000001000000"}]}]}]}`
+
+	events := postMessagesWithConfig(t, []LogMessage{{
+		Time:   "2025-07-20T08:26:40.000Z",
+		Type:   "function",
+		Record: recString(thresholdSampled),
+	}}, otlpConfig)
+
+	require.Len(t, events, 1)
+	assert.LessOrEqual(t, events[0].SampleRate, uint(math.MaxInt32),
+		"a wrapped conversion would exceed any rate husky can mean")
 }
 
 // An export request that translates to nothing must not disappear: it falls
