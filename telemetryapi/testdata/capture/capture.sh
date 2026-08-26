@@ -90,7 +90,10 @@ for format in Text JSON; do
 	START_MS=$(python3 -c 'import time;print(int(time.time()*1000)-2000)')
 	for pass in 1 2; do
 		echo "--- invoking (pass $pass)"
+		# raw-in-base64-out because AWS CLI v2 otherwise expects the payload
+		# itself to be base64.
 		aws lambda invoke --function-name "$NAME" --payload '{}' \
+			--cli-binary-format raw-in-base64-out \
 			--query 'FunctionError' --output text \
 			"$WORK/out-$format-$pass.json" >"$WORK/err-$format-$pass.txt"
 		if [ "$(cat "$WORK/err-$format-$pass.txt")" != "None" ]; then
@@ -113,7 +116,8 @@ for format in Text JSON; do
 			break
 		fi
 		echo "    capture incomplete (attempt $attempt); invoking again"
-		aws lambda invoke --function-name "$NAME" --payload '{}' "$WORK/nudge.json" >/dev/null
+		aws lambda invoke --function-name "$NAME" --payload '{}' \
+			--cli-binary-format raw-in-base64-out "$WORK/nudge.json" >/dev/null
 		sleep 10
 	done
 
