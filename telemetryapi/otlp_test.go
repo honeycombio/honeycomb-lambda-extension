@@ -187,6 +187,21 @@ func TestUnusualRecordShapesDoNotPanic(t *testing.T) {
 	}
 }
 
+// A record that is valid JSON can still fail to decode into a Go value, which
+// used to drop the message with only a warning in the extension's own log.
+// Nothing else reports it, so the function's output would simply be missing.
+func TestUndecodableRecordIsReportedNotDropped(t *testing.T) {
+	// A number outside float64's range is the only way to reach this: the
+	// batch itself already decoded, so the record is syntactically valid.
+	const body = `[{"time":"2025-07-20T08:26:40.000Z","type":"function","record":{"n":1e999}}]`
+
+	events := postBody(t, body, otlpConfig)
+
+	require.Len(t, events, 1, "the message should still reach Honeycomb")
+	assert.Equal(t, `{"n":1e999}`, events[0].Data["record"],
+		"the record it could not decode is carried as the line it was")
+}
+
 // A panic in one message must not take the rest of the batch with it.
 func TestUnusualRecordDoesNotLoseTheRestOfTheBatch(t *testing.T) {
 	events := postBody(t, `[
