@@ -107,12 +107,14 @@ for format in Text JSON; do
 	# Telemetry lands only after the environment thaws, so keep invoking until the
 	# function's own stdout actually appears rather than settling for init-phase
 	# messages that arrive first.
+	ready=0
 	for attempt in 1 2 3 4 5 6; do
 		aws logs filter-log-events --log-group-name "/aws/lambda/$NAME" \
 			--start-time "$START_MS" \
 			--filter-pattern '"CAPTURE:"' --query 'events[].message' --output json \
 			>"$WORK/raw-$format.json" 2>/dev/null || echo '[]' >"$WORK/raw-$format.json"
 		if [ "$(python3 "$HERE/collect.py" --ready "$WORK/raw-$format.json")" = "1" ]; then
+			ready=1
 			break
 		fi
 		echo "    capture incomplete (attempt $attempt); invoking again"
@@ -120,6 +122,13 @@ for format in Text JSON; do
 			--cli-binary-format raw-in-base64-out "$WORK/nudge.json" >/dev/null
 		sleep 10
 	done
+
+	# A partial capture must never become the golden: the replay tests would
+	# assert against an impoverished picture of what Lambda sends, and pass.
+	if [ "$ready" != "1" ]; then
+		echo "ERROR: the $format capture never completed; not writing a golden" >&2
+		exit 1
+	fi
 
 	lower=$(printf '%s' "$format" | tr '[:upper:]' '[:lower:]')
 	python3 "$HERE/collect.py" "$WORK/raw-$format.json" \
