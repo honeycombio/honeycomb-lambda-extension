@@ -48,6 +48,12 @@ jobs:
       - run:
           name: "Run the extension in the Lambda emulator"
           command: make test-rie
+          environment:
+            # A machine that cannot reach the emulator's source skips the suite,
+            # which is the right answer where a developer has other ways to get
+            # the same signal. Here it would be a green job that ran nothing, and
+            # publishing is gated on this job, so require the suite to run.
+            RIE_REQUIRED: "1"
           # Pulling the Lambda base image and building the emulator take a while
           # before any test output appears.
           no_output_timeout: 20m

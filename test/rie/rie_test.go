@@ -22,7 +22,8 @@
 // before invoking.
 //
 // Requires Docker. Excluded from the default build by the rie tag; run with
-// `make test-rie`.
+// `make test-rie`. Set RIE_REQUIRED to make an emulator that cannot be built
+// fail the run rather than skip it.
 package rie
 
 import (
@@ -56,6 +57,13 @@ var (
 	buildErr  error
 )
 
+// ensureImage builds the test image once, and decides whether an image that
+// could not be built is a skip or a failure.
+//
+// Skipping is right where this suite is one of several ways to reach the same
+// signal and the machine simply cannot run it. Where it is the only way -- a
+// pipeline that gates publishing on it -- a skip is a green run that exercised
+// nothing, so RIE_REQUIRED turns every skip reason into a failure.
 func ensureImage(t *testing.T) {
 	t.Helper()
 	buildOnce.Do(func() {
@@ -65,6 +73,9 @@ func ensureImage(t *testing.T) {
 		t.Fatalf("building the test image: %v", buildErr)
 	}
 	if buildSkip != "" {
+		if os.Getenv("RIE_REQUIRED") != "" {
+			t.Fatalf("RIE_REQUIRED is set, so this may not be skipped: %s", buildSkip)
+		}
 		t.Skip(buildSkip)
 	}
 }
