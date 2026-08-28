@@ -20,6 +20,42 @@ jobs:
       - store_test_results:
           path: ./unit-tests.xml
       - go/save-cache
+  # Runs the extension inside the Lambda Runtime Interface Emulator, driven by the
+  # real Extensions and Telemetry APIs, and asserts on the events it delivers.
+  #
+  # A machine executor rather than a docker one: the test publishes a container
+  # port and expects to reach it locally, and the container has to reach a stand-in
+  # API in the job. With setup_remote_docker the daemon is on another host, so
+  # neither direction works.
+  test_emulator:
+    parameters:
+      resource_class:
+        type: string
+    machine:
+      image: ubuntu-2404:current
+    resource_class: << parameters.resource_class >>
+    steps:
+      - checkout
+      # The image's Go is used as-is. Since Go 1.21 the toolchain switches
+      # automatically to whatever go.mod asks for, so this compiles with the
+      # version we build against without pinning anything here.
+      - run: go version
+      - restore_cache:
+          keys:
+            - rie-emulator-v1-{{ arch }}-{{ checksum "test/rie/emulator.go" }}
+      - go/load-cache
+      - go/mod-download
+      - run:
+          name: "Run the extension in the Lambda emulator"
+          command: make test-rie
+          # Pulling the Lambda base image and building the emulator take a while
+          # before any test output appears.
+          no_output_timeout: 20m
+      - save_cache:
+          key: rie-emulator-v1-{{ arch }}-{{ checksum "test/rie/emulator.go" }}
+          paths:
+            - /tmp/hny-lambda-ext-emulator
+      - go/save-cache
   build_extension:
     executor:
       name: go/default
@@ -103,6 +139,10 @@ workflows:
                 - main
     jobs:
       - test
+      - test_emulator:
+          matrix:
+            parameters:
+              resource_class: ["large", "arm.large"]
 
   build:
     jobs:
@@ -110,6 +150,18 @@ workflows:
           filters:
             tags:
               only: /.*/
+      # Both architectures are published, so both are exercised. Skipped for
+      # forked pull requests, which cannot reach the emulator build.
+      - test_emulator:
+          matrix:
+            parameters:
+              resource_class: ["large", "arm.large"]
+          filters:
+            tags:
+              only: /.*/
+            branches:
+              ignore:
+                - /pull\/.*/
       - build_extension:
           context: Honeycomb Secrets for Public Repos
           filters:
@@ -128,6 +180,9 @@ workflows:
               ignore: /.*/
           requires:
             - test
+            # The matrix alias defaults to the job name, so this waits for every
+            # architecture rather than naming the generated jobs.
+            - test_emulator
             - build_extension
       - publish_aws:
           context: Honeycomb Secrets for Public Repos
@@ -138,6 +193,9 @@ workflows:
               ignore: /.*/
           requires:
             - test
+            # The matrix alias defaults to the job name, so this waits for every
+            # architecture rather than naming the generated jobs.
+            - test_emulator
             - build_extension
       - publish_github:
           context: Honeycomb Secrets for Public Repos
@@ -148,4 +206,7 @@ workflows:
               ignore: /.*/
           requires:
             - test
+            # The matrix alias defaults to the job name, so this waits for every
+            # architecture rather than naming the generated jobs.
+            - test_emulator
             - build_extension

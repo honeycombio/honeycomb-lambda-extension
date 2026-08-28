@@ -1,22 +1,30 @@
 package telemetryapi
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strconv"
 	"time"
 
+	"github.com/honeycombio/honeycomb-lambda-extension/extension"
+	"github.com/honeycombio/honeycomb-lambda-extension/otlpjson"
 	libhoney "github.com/honeycombio/libhoney-go"
 	logrus "github.com/sirupsen/logrus"
 )
 
-// LogMessage is an Event record sent from the Telemetry API
+// LogMessage is an Event record sent from the Telemetry API.
+//
+// Record is held as raw bytes rather than a decoded value so that a record
+// carrying OTLP/JSON can be handed to the translator exactly as the function
+// wrote it. Decoding to interface{} first would round-trip nanosecond
+// timestamps through float64 and lose precision.
 type LogMessage struct {
-	Type   string      `json:"type"`
-	Time   string      `json:"time"`
-	Record interface{} `json:"record"`
+	Type   string          `json:"type"`
+	Time   string          `json:"time"`
+	Record json.RawMessage `json:"record"`
 }
 
 type eventCreator interface {
@@ -31,11 +39,12 @@ var (
 )
 
 // handler receives batches of log messages from the Lambda Telemetry API. Each
-// LogMessage is sent to Honeycomb as a separate event.
-func handler(client eventCreator) http.HandlerFunc {
+// LogMessage is sent to Honeycomb as a separate event, except for records
+// holding OTLP/JSON, which expand into one event per span or log record.
+func handler(client eventCreator, config extension.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Debug("handler - log batch received")
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			log.Warn("Error", err)
 			return
@@ -65,29 +74,123 @@ func handler(client eventCreator) http.HandlerFunc {
 		// emitted by libhoney/beeline parses identically regardless of the
 		// function's logging config.
 		for _, msg := range logs {
-			event := client.NewEvent()
-			event.AddField("lambda_extension.type", msg.Type)
-
-			switch record := msg.Record.(type) {
-			case string:
-				addRecordString(event, msg, record)
-			case map[string]interface{}:
-				if inner, ok := record["message"].(string); ok && record["data"] == nil {
-					// JSON-log-format wrapper around a non-JSON line; unwrap and
-					// handle the original line as if it had arrived unwrapped.
-					addRecordString(event, msg, inner)
-				} else {
-					addRecordJSON(event, msg, record)
+			// A record that is absent or null leaves record nil, and the message
+			// still reaches Honeycomb carrying its type and timestamp.
+			var record interface{}
+			if len(msg.Record) > 0 {
+				if err := json.Unmarshal(msg.Record, &record); err != nil {
+					log.Warn("Could not unmarshal record", err)
+					continue
 				}
-			default:
-				event.Timestamp = parseMessageTimestamp(event, msg)
-				event.Add(msg.Record)
 			}
-			event.Metadata, _ = event.Fields()["name"]
-			event.SendPresampled()
-			log.Debug("handler - event enqueued")
+
+			line, isLine := recordLine(record)
+			payload := []byte(msg.Record)
+			if isLine {
+				payload = []byte(line)
+			}
+			if sendOTLP(client, config, msg, payload) {
+				continue
+			}
+
+			event := newEvent(client, msg)
+			if isLine {
+				addRecordString(event, msg, line)
+			} else if fields, ok := record.(map[string]interface{}); ok {
+				addRecordJSON(event, msg, fields)
+			} else {
+				event.Timestamp = parseMessageTimestamp(event, msg)
+				if record != nil {
+					event.Add(record)
+				}
+			}
+			sendEvent(event)
 		}
 	}
+}
+
+// recordLine returns the stdout line a record holds, if it holds a line rather
+// than structured data: the record itself in plain-text log format, or the
+// message field of the {timestamp, level, message} wrapper that JSON log format
+// puts around a non-JSON line.
+func recordLine(record interface{}) (string, bool) {
+	switch record := record.(type) {
+	case string:
+		return record, true
+	case map[string]interface{}:
+		if message, ok := record["message"].(string); ok && record["data"] == nil {
+			return message, true
+		}
+	}
+	return "", false
+}
+
+// newEvent starts an event, marking which kind of telemetry it came from.
+//
+// Translated OTLP is marked too, even though the OTLP endpoint would not add
+// this field. Annotating telemetry with the component that processed it is the
+// same thing Refinery does on the way through, and it is how a query can tell a
+// span that arrived via this extension from one sent directly.
+func newEvent(client eventCreator, msg LogMessage) *libhoney.Event {
+	event := client.NewEvent()
+	event.AddField("lambda_extension.type", msg.Type)
+	return event
+}
+
+func sendEvent(event *libhoney.Event) {
+	event.Metadata, _ = event.Fields()["name"]
+	event.SendPresampled()
+	log.Debug("handler - event enqueued")
+}
+
+// sendOTLP checks whether a function's stdout line is an OTLP/JSON export
+// request and, if so, sends every span or log record it contains. It reports
+// whether the line was handled.
+//
+// A line that looks like OTLP but fails to translate is deliberately not
+// handled here: falling through to the ordinary log handling puts the offending
+// payload in front of the user, which is what someone debugging their exporter
+// configuration needs to see.
+func sendOTLP(client eventCreator, config extension.Config, msg LogMessage, record []byte) bool {
+	if msg.Type != string(FunctionLog) {
+		return false
+	}
+	payload, err := otlpjson.Parse(record)
+	if err != nil {
+		log.WithError(err).Warn("Could not read OTLP record from function stdout")
+		return false
+	}
+	if payload == nil {
+		return false
+	}
+
+	batches, err := otlpjson.Translate(context.Background(), payload, config.APIKey, config.Dataset)
+	if err != nil {
+		log.WithError(err).Warn("Could not translate OTLP record from function stdout")
+		return false
+	}
+
+	sent := 0
+	for _, batch := range batches {
+		for _, translated := range batch.Events {
+			event := newEvent(client, msg)
+			event.Dataset = batch.Dataset
+			event.Timestamp = translated.Timestamp
+			// husky guarantees a sample rate of at least 1, so this cannot wrap.
+			event.SampleRate = uint(translated.SampleRate)
+			event.Add(translated.Attributes)
+			sendEvent(event)
+			sent++
+		}
+	}
+
+	// An export request holding no spans or log records would otherwise vanish
+	// without a trace, being neither translated into anything nor logged.
+	if sent == 0 {
+		log.Warn("OTLP record from function stdout contained no spans or log records")
+		return false
+	}
+	return true
 }
 
 // addRecordString populates event from a raw log line, parsing it as JSON when
@@ -231,13 +334,13 @@ func parseFunctionTimestamp(msg LogMessage, body map[string]interface{}) time.Ti
 // log messages to the specified port for testing.
 //
 // [Telemetry API message format]: https://docs.aws.amazon.com/lambda/latest/dg/telemetry-api.html#telemetry-api-messages
-func StartTelemetryReceiver(port int, client eventCreator) {
+func StartTelemetryReceiver(config extension.Config, client eventCreator) {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", handler(client))
+	mux.HandleFunc("/", handler(client, config))
 	server := &http.Server{
-		Addr:    fmt.Sprintf("0.0.0.0:%d", port),
+		Addr:    fmt.Sprintf("0.0.0.0:%d", config.LogsReceiverPort),
 		Handler: mux,
 	}
-	log.Info("Telemetry server listening on port ", port)
+	log.Info("Telemetry server listening on port ", config.LogsReceiverPort)
 	log.Fatal(server.ListenAndServe())
 }

@@ -25,6 +25,11 @@ else
 	gotestsum --junitfile unit-tests.xml --format testname -- -race ./...
 endif
 
+.PHONY: test-rie
+#: run the extension inside the Lambda Runtime Interface Emulator (needs Docker)
+test-rie:
+	go test -tags rie -count=1 -timeout 600s -v ./test/rie/
+
 .PHONY: version
 version:
 	@echo $(CIRCLE_TAG)
@@ -40,7 +45,10 @@ $(BUILD_DIR):
 
 # List of the Go source files; the build target will then know if these are newer than an executable present.
 GO_SOURCES := go.mod go.sum $(wildcard *.go) $(wildcard */*.go)
-ldflags := "-X main.version=$(CIRCLE_TAG)"
+# -s -w drop the symbol table and DWARF, roughly halving the size of the layer
+# zip that Lambda downloads. Panic stack traces are unaffected; they come from
+# the runtime's pclntab, not from either of these.
+ldflags := "-s -w -X main.version=$(CIRCLE_TAG)"
 
 $(BUILD_DIR)/honeycomb-lambda-extension-arm64: $(GO_SOURCES) | $(BUILD_DIR)
 	@echo "\n*** Building honeycomb-lambda-extension for ${GOOS}/arm64"

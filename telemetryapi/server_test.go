@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/honeycombio/honeycomb-lambda-extension/extension"
 	libhoney "github.com/honeycombio/libhoney-go"
 	"github.com/honeycombio/libhoney-go/transmission"
 	"github.com/stretchr/testify/assert"
@@ -19,55 +20,52 @@ var (
 	christmasTimestamp = "2020-12-25T12:34:56.789Z"
 
 	platformStartMessage = LogMessage{
-		Time: "2020-11-03T21:10:25.133Z",
-		Type: "platform.start",
-		Record: map[string]string{
-			"requestId": "6d67e385-053d-4622-a56f-b25bcef23083",
-			"version":   "$LATEST",
-		},
+		Time:   "2020-11-03T21:10:25.133Z",
+		Type:   "platform.start",
+		Record: rec(`{"requestId": "6d67e385-053d-4622-a56f-b25bcef23083", "version": "$LATEST"}`),
 	}
 
 	nonJsonFunctionMessage = LogMessage{
 		Time:   "2020-11-03T21:10:25.150Z",
 		Type:   "function",
-		Record: "A basic message to STDOUT",
+		Record: recString("A basic message to STDOUT"),
 	}
 
 	functionMessageWithStringDurationNoTimestamp = LogMessage{
 		Time:   "2020-11-03T21:10:25.150Z",
 		Type:   "function",
-		Record: "{\"foo\": \"bar\", \"duration_ms\": \"54\"}",
+		Record: recString("{\"foo\": \"bar\", \"duration_ms\": \"54\"}"),
 	}
 
 	functionMessageWithIntDurationNoTimestamp = LogMessage{
 		Time:   "2020-11-03T21:10:25.150Z",
 		Type:   "function",
-		Record: "{\"foo\": \"bar\", \"duration_ms\": 54}",
+		Record: recString("{\"foo\": \"bar\", \"duration_ms\": 54}"),
 	}
 
 	functionMessageWithFloatDurationNoTimestamp = LogMessage{
 		Time:   "2020-11-03T21:10:25.150Z",
 		Type:   "function",
-		Record: "{\"foo\": \"bar\", \"duration_ms\": 54.43}",
+		Record: recString("{\"foo\": \"bar\", \"duration_ms\": 54.43}"),
 	}
 
 	functionMessageWithTimestamp = LogMessage{
 		Time:   "2020-11-03T21:10:25.150Z",
 		Type:   "function",
-		Record: "{\"foo\": \"bar\", \"duration_ms\": 54, \"timestamp\": \"2020-11-03T21:10:25.090Z\"}",
+		Record: recString("{\"foo\": \"bar\", \"duration_ms\": 54, \"timestamp\": \"2020-11-03T21:10:25.090Z\"}"),
 	}
 
 	functionMessageFromLibhoneyTransmission = LogMessage{
 		Time: epochTimestamp,
 		Type: "function",
 		// 🎄
-		Record: `{"time": "2020-12-25T12:34:56.789Z", "samplerate": 1, "data": {"foo": "bar", "duration_ms": 54} }`,
+		Record: recString(`{"time": "2020-12-25T12:34:56.789Z", "samplerate": 1, "data": {"foo": "bar", "duration_ms": 54} }`),
 	}
 
 	functionMessageJsonAndDataIsNotMappable = LogMessage{
 		Time:   epochTimestamp,
 		Type:   "function",
-		Record: `{"timestamp": "2020-12-25T12:34:56.789Z", "data": "an android" }`,
+		Record: recString(`{"timestamp": "2020-12-25T12:34:56.789Z", "data": "an android" }`),
 	}
 
 	logMessages = []LogMessage{
@@ -81,22 +79,51 @@ var (
 	}
 )
 
+// rec builds a Record from the JSON the Telemetry API would have delivered.
+func rec(jsonText string) json.RawMessage {
+	return json.RawMessage(jsonText)
+}
+
+// recString builds a Record for a stdout line delivered in plain-text log
+// format, where the line arrives as a JSON string.
+func recString(line string) json.RawMessage {
+	encoded, err := json.Marshal(line)
+	if err != nil {
+		panic(err)
+	}
+	return encoded
+}
+
 func postMessages(t *testing.T, messages []LogMessage) []*transmission.Event {
-	rr := httptest.NewRecorder()
+	return postMessagesWithConfig(t, messages, extension.Config{})
+}
+
+func postMessagesWithConfig(t *testing.T, messages []LogMessage, config extension.Config) []*transmission.Event {
 	b, err := json.Marshal(messages)
 	if err != nil {
 		t.Error(err)
 	}
-	req, err := http.NewRequest("POST", "/", bytes.NewBuffer(b))
+	return postBody(t, string(b), config)
+}
+
+// postBody posts a raw Telemetry API payload, for shapes that a []LogMessage
+// can't express.
+func postBody(t *testing.T, body string, config extension.Config) []*transmission.Event {
+	rr := httptest.NewRecorder()
+	req, err := http.NewRequest("POST", "/", bytes.NewBufferString(body))
 	if err != nil {
 		t.Error(err)
 	}
 	testTx := &transmission.MockSender{}
+	// Mirror the production publisher, which configures the client with the
+	// dataset from the environment. Events only carry a dataset of their own
+	// when something has deliberately overridden it.
 	client, _ := libhoney.NewClient(libhoney.ClientConfig{
 		Transmission: testTx,
 		APIKey:       "blah",
+		Dataset:      config.Dataset,
 	})
-	handler(client).ServeHTTP(rr, req)
+	handler(client, config).ServeHTTP(rr, req)
 	if status := rr.Code; status != http.StatusOK {
 		t.Errorf("handler returned wrong status code: got %v want %v",
 			status, http.StatusOK)
@@ -127,7 +154,7 @@ func TestLogMessageFromLibhoneyTransmission(t *testing.T) {
 			Time: epochTimestamp,
 			Type: "function",
 			// 🎄
-			Record: `{"time": "2020-12-25T12:34:56.789Z", "samplerate": 1, "data": {"foo": "bar", "duration_ms": 54}, "foo": "BOGUS", "duration_ms": "ALSO BOGUS" }`,
+			Record: recString(`{"time": "2020-12-25T12:34:56.789Z", "samplerate": 1, "data": {"foo": "bar", "duration_ms": 54}, "foo": "BOGUS", "duration_ms": "ALSO BOGUS" }`),
 		},
 	})
 
@@ -218,7 +245,7 @@ func TestLibhoneyEventWithSampleRate(t *testing.T) {
 		events := postMessages(t, []LogMessage{{
 			Time:   epochTimestamp,
 			Type:   "function",
-			Record: `{"time": "2020-12-25T12:34:56.789Z", "samplerate": 5, "data": {"foo": "bar", "duration_ms": 54} }`,
+			Record: recString(`{"time": "2020-12-25T12:34:56.789Z", "samplerate": 5, "data": {"foo": "bar", "duration_ms": 54} }`),
 		}})
 		event := events[0]
 		assert.EqualValues(t, 5, event.SampleRate)
@@ -227,7 +254,7 @@ func TestLibhoneyEventWithSampleRate(t *testing.T) {
 		events := postMessages(t, []LogMessage{{
 			Time:   epochTimestamp,
 			Type:   "function",
-			Record: `{"time": "2020-12-25T12:34:56.789Z", "samplerate": 10.1, "data": {"foo": "bar", "duration_ms": 54} }`,
+			Record: recString(`{"time": "2020-12-25T12:34:56.789Z", "samplerate": 10.1, "data": {"foo": "bar", "duration_ms": 54} }`),
 		}})
 		event := events[0]
 		// we round downwards
@@ -237,7 +264,7 @@ func TestLibhoneyEventWithSampleRate(t *testing.T) {
 		events := postMessages(t, []LogMessage{{
 			Time:   epochTimestamp,
 			Type:   "function",
-			Record: `{"time": "2020-12-25T12:34:56.789Z", "samplerate": "11", "data": {"foo": "bar", "duration_ms": 54} }`,
+			Record: recString(`{"time": "2020-12-25T12:34:56.789Z", "samplerate": "11", "data": {"foo": "bar", "duration_ms": 54} }`),
 		}})
 		event := events[0]
 		assert.EqualValues(t, 11, event.SampleRate)
@@ -246,7 +273,7 @@ func TestLibhoneyEventWithSampleRate(t *testing.T) {
 		events := postMessages(t, []LogMessage{{
 			Time:   epochTimestamp,
 			Type:   "function",
-			Record: `{"time": "2020-12-25T12:34:56.789Z", "samplerate": "hello", "data": {"foo": "bar", "duration_ms": 54} }`,
+			Record: recString(`{"time": "2020-12-25T12:34:56.789Z", "samplerate": "hello", "data": {"foo": "bar", "duration_ms": 54} }`),
 		}})
 		event := events[0]
 		assert.EqualValues(t, 1, event.SampleRate)
@@ -255,7 +282,7 @@ func TestLibhoneyEventWithSampleRate(t *testing.T) {
 		events := postMessages(t, []LogMessage{{
 			Time:   epochTimestamp,
 			Type:   "function",
-			Record: `{"time": "2020-12-25T12:34:56.789Z", "samplerate": true, "data": {"foo": "bar", "duration_ms": 54} }`,
+			Record: recString(`{"time": "2020-12-25T12:34:56.789Z", "samplerate": true, "data": {"foo": "bar", "duration_ms": 54} }`),
 		}})
 		event := events[0]
 		assert.EqualValues(t, 1, event.SampleRate)
@@ -264,7 +291,7 @@ func TestLibhoneyEventWithSampleRate(t *testing.T) {
 		events := postMessages(t, []LogMessage{{
 			Time:   epochTimestamp,
 			Type:   "function",
-			Record: `{"time": "2020-12-25T12:34:56.789Z", "samplerate": -12, "data": {"foo": "bar", "duration_ms": 54} }`,
+			Record: recString(`{"time": "2020-12-25T12:34:56.789Z", "samplerate": -12, "data": {"foo": "bar", "duration_ms": 54} }`),
 		}})
 		event := events[0]
 		assert.EqualValues(t, 1, event.SampleRate)
@@ -279,16 +306,16 @@ func TestJSONFormatRecordObjects(t *testing.T) {
 		events := postMessages(t, []LogMessage{{
 			Time: epochTimestamp,
 			Type: "function",
-			Record: map[string]interface{}{
-				"time":       christmasTimestamp,
-				"dataset":    "retriever-traces",
-				"samplerate": float64(5),
-				"data": map[string]interface{}{
-					"name":           "QueryKiller.Tick",
+			Record: rec(`{
+				"time": "2020-12-25T12:34:56.789Z",
+				"dataset": "retriever-traces",
+				"samplerate": 5,
+				"data": {
+					"name": "QueryKiller.Tick",
 					"trace.trace_id": "97cac7afa949e6e0ccf399e11509c275",
-					"duration_ms":    0.019234,
-				},
-			},
+					"duration_ms": 0.019234
+				}
+			}`),
 		}})
 		event := events[0]
 		assert.Equal(t, "QueryKiller.Tick", event.Data["name"])
@@ -303,11 +330,11 @@ func TestJSONFormatRecordObjects(t *testing.T) {
 		events := postMessages(t, []LogMessage{{
 			Time: "2020-11-03T21:10:25.150Z",
 			Type: "function",
-			Record: map[string]interface{}{
+			Record: rec(`{
 				"timestamp": "2020-11-03T21:10:25.150Z",
-				"level":     "INFO",
-				"message":   "A basic message to STDOUT",
-			},
+				"level": "INFO",
+				"message": "A basic message to STDOUT"
+			}`),
 		}})
 		event := events[0]
 		assert.Equal(t, "A basic message to STDOUT", event.Data["record"])
@@ -317,11 +344,11 @@ func TestJSONFormatRecordObjects(t *testing.T) {
 		events := postMessages(t, []LogMessage{{
 			Time: epochTimestamp,
 			Type: "function",
-			Record: map[string]interface{}{
-				"timestamp": christmasTimestamp,
-				"level":     "INFO",
-				"message":   `{"time": "2020-12-25T12:34:56.789Z", "samplerate": 1, "data": {"foo": "bar"}}`,
-			},
+			Record: rec(`{
+				"timestamp": "2020-12-25T12:34:56.789Z",
+				"level": "INFO",
+				"message": "{\"time\": \"2020-12-25T12:34:56.789Z\", \"samplerate\": 1, \"data\": {\"foo\": \"bar\"}}"
+			}`),
 		}})
 		event := events[0]
 		assert.Equal(t, "bar", event.Data["foo"])
