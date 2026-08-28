@@ -102,6 +102,11 @@ update-licenses:
 	go install github.com/google/go-licenses@latest
 	go-licenses save github.com/honeycombio/honeycomb-lambda-extension --save_path="./LICENSES" --force
 
+.PHONY: check-licenses
+check-licenses:
+	go-licenses check github.com/honeycombio/honeycomb-lambda-extension \
+    --disallowed_types=forbidden,restricted,unknown
+
 .PHONY: publish-sandbox
 # Ex: AWS_ARCH=arm64 AWS_REGION=us-east-1 make publish_sandbox
 #
