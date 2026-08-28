@@ -1,5 +1,26 @@
 # Honeycomb Lambda Extension Changelog
 
+## v12.1.0 - 2026-08-31
+
+This release lets a function instrumented with OpenTelemetry send its telemetry through this extension instead of running a sidecar collector.
+
+### ✨ New support
+
+- OTLP/JSON on function stdout. A function that exports traces and logs via `OTEL_TRACES_EXPORTER=experimental-otlp/stdout` (Java) or the community [`otlp-stdout`](https://github.com/dev7a/serverless-otlp-forwarder) envelope (Node, Python, Rust) now has that telemetry picked up, translated through the same husky library Honeycomb's OTLP endpoint uses, and shipped to Honeycomb — no collector process, no socket for the application to connect to. Traces and logs only; metrics aren't supported. Spans and OTLP log records route to the dataset named by `service.name`, matching OTLP endpoint behavior; everything else still routes through `LIBHONEY_DATASET`.
+
+### Enhancements
+
+- feat: support OTLP/JSON on function stdout (#176) | [@lizthegrey](https://github.com/lizthegrey)
+
+### Fixes
+
+- fix: fix 2 bugs in OTLP/JSON stdout handling (#181) | [@JamieDanielson](https://github.com/JamieDanielson)
+
+### Maintenance
+
+- maint: exclude unreliable Middle East regions from publishing (#175) | [@lizthegrey](https://github.com/lizthegrey)
+- chore: update licenses for latest deps before publishing (#184) | [@JamieDanielson](https://github.com/JamieDanielson)
+
 ## v12.0.0 - 2026-07-07
 
 **This is a breaking release.** It adds support for a new AWS deployment model (Lambda Managed Instances) by replacing this extension's telemetry transport outright — every function using this extension, not just ones adopting the new deployment model, now delivers logs via a different API than before. If you deploy this layer, read the breaking changes below before rolling out past a canary.
