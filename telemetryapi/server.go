@@ -118,11 +118,26 @@ func recordLine(record interface{}) (string, bool) {
 	case string:
 		return record, true
 	case map[string]interface{}:
-		if message, ok := record["message"].(string); ok && record["data"] == nil {
-			return message, true
-		}
+		return wrappedLine(record)
 	}
 	return "", false
+}
+
+// wrappedLine reports the line a JSON-log-format wrapper carries. The wrapper is
+// exactly {timestamp, level, message}, plus a requestId from the managed
+// runtimes. A function's own structured log can carry a message field too, and
+// unwrapping that would keep the message and silently discard every field
+// beside it, so only the full wrapper shape unwraps.
+func wrappedLine(record map[string]interface{}) (string, bool) {
+	for key := range record {
+		switch key {
+		case "message", "timestamp", "level", "requestId":
+		default:
+			return "", false
+		}
+	}
+	message, ok := record["message"].(string)
+	return message, ok
 }
 
 // newEvent starts an event, marking which kind of telemetry it came from.
@@ -176,8 +191,7 @@ func sendOTLP(client eventCreator, config extension.Config, msg LogMessage, reco
 			event := newEvent(client, msg)
 			event.Dataset = batch.Dataset
 			event.Timestamp = translated.Timestamp
-			// husky guarantees a sample rate of at least 1, so this cannot wrap.
-			event.SampleRate = uint(translated.SampleRate)
+			event.SampleRate = sampleRate(translated.SampleRate)
 			event.Add(translated.Attributes)
 			sendEvent(event)
 			sent++
@@ -191,6 +205,18 @@ func sendOTLP(client eventCreator, config extension.Config, msg LogMessage, reco
 		return false
 	}
 	return true
+}
+
+// sampleRate converts the rate husky derived into the one libhoney takes,
+// enforcing a floor that husky does not. A sample rate is meaningless below 1,
+// and a non-positive one converted to an unsigned type becomes an
+// astronomically large weight rather than a small one, so every event in the
+// batch would be counted as millions.
+func sampleRate(derived int32) uint {
+	if derived < 1 {
+		return 1
+	}
+	return uint(derived)
 }
 
 // addRecordString populates event from a raw log line, parsing it as JSON when

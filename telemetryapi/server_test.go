@@ -326,6 +326,27 @@ func TestJSONFormatRecordObjects(t *testing.T) {
 		assert.EqualValues(t, 5, event.SampleRate)
 	})
 
+	// The wrapper is the platform's, and a function's own log can look like it.
+	// Unwrapping one of those keeps the message and loses everything else, and
+	// only under JSON log format, so the same line would reach Honeycomb as two
+	// different events depending on a setting the function did not choose.
+	t.Run("a function's own structured log keeps all its fields", func(t *testing.T) {
+		const line = `{"message": "user logged in", "user_id": 42}`
+
+		asObject := postMessages(t, []LogMessage{{
+			Time: epochTimestamp, Type: "function", Record: rec(line),
+		}})[0]
+		assert.Equal(t, "user logged in", asObject.Data["message"])
+		assert.EqualValues(t, 42, asObject.Data["user_id"],
+			"a message field alone must not be mistaken for the platform's wrapper")
+
+		asLine := postMessages(t, []LogMessage{{
+			Time: epochTimestamp, Type: "function", Record: recString(line),
+		}})[0]
+		assert.Equal(t, asObject.Data, asLine.Data,
+			"the log format the function is configured with must not change the event")
+	})
+
 	t.Run("non-JSON line arrives wrapped in timestamp/level/message", func(t *testing.T) {
 		events := postMessages(t, []LogMessage{{
 			Time: "2020-11-03T21:10:25.150Z",
