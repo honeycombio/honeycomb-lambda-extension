@@ -3,6 +3,7 @@
 1. In a working copy of this repo, run `make update-licenses`.
     - We use [go-licenses](https://github.com/google/go-licenses) to ensure all project dependency licenses are correctly represented in this repository.
     - Assess any changes or additions to the contents of the `./LICENSES/` directory for dependencies that are licensed in a way we cannot redistribute.
+    - To automate this, run `make check-licenses`
     - If all is OK for redistribution, open a PR with the updates, review, and merge that before proceeding with the rest of the release steps.
 1. Draft a docs PR for this release.
 1. Update `CHANGELOG.md` with the changes since the last release.
