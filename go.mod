@@ -5,8 +5,8 @@ go 1.26
 require (
 	github.com/honeycombio/husky v0.43.1
 	github.com/honeycombio/libhoney-go v1.27.1
-	github.com/sirupsen/logrus v1.9.4
-	github.com/stretchr/testify v1.11.1
+	github.com/sirupsen/logrus v1.10.2
+	github.com/stretchr/testify v1.12.1
 	go.opentelemetry.io/proto/otlp v1.9.0
 	google.golang.org/protobuf v1.36.11
 )
@@ -28,6 +28,7 @@ require (
 	go.opentelemetry.io/proto/otlp/collector/profiles/v1development v0.2.0 // indirect
 	go.opentelemetry.io/proto/otlp/profiles/v1development v0.2.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
+	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/net v0.47.0 // indirect
 	golang.org/x/text v0.31.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20251029180050-ab9386a59fda // indirect
@@ -37,15 +38,12 @@ require (
 
 require (
 	github.com/aws/aws-sdk-go v1.55.8
-	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/facebookgo/clock v0.0.0-20150410010913-600d898af40a // indirect
 	github.com/facebookgo/limitgroup v0.0.0-20150612190941-6abd8d71ec01 // indirect
 	github.com/facebookgo/muster v0.0.0-20150708232844-fd3d7953fd52 // indirect
 	github.com/klauspost/compress v1.18.5
-	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/vmihailenco/msgpack/v5 v5.4.1
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 	golang.org/x/sys v0.38.0 // indirect
 	gopkg.in/alexcesaro/statsd.v2 v2.0.0 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
