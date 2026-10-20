@@ -1,5 +1,28 @@
 # Honeycomb Lambda Extension Changelog
 
+## v12.2.0 - 2026-10-20
+
+This release rebuilds the extension with Go 1.27.3, which carries the `crypto/x509` mitigation for the compromised eMudhra intermediate certificate authorities (CVE-2026-111943). A layer built with an earlier toolchain still trusts those intermediates, so anyone holding one of the compromised private keys could impersonate a host the extension connects to — the Honeycomb API included. The same release clears every open Dependabot alert against `google.golang.org/grpc`, `github.com/klauspost/compress` and `golang.org/x/net`, and stops dropping telemetry that fails to decode.
+
+### Fixes
+
+- fix: report a record that cannot be decoded instead of dropping it (#183) | [@JamieDanielson](https://github.com/JamieDanielson)
+  A record that failed to decode into `interface{}` — a JSON number outside `float64`'s range such as `1e999`, for example — logged a warning and then vanished, so the message never reached Honeycomb. It now arrives as an event whose `record` field carries the raw text, the same treatment every other unreadable line already received.
+- fix: test harness bugs that report success or failure incorrectly (#182) | [@JamieDanielson](https://github.com/JamieDanielson)
+  Test tooling only; no change to the extension's behavior. A failed emulator image build is now recorded once and replayed to every test instead of failing them one at a time, `RIE_REQUIRED` turns a skipped emulator into a CI failure rather than a green job that exercised nothing, and the golden-capture script sends its payload in the format AWS CLI v2 accepts and no longer overwrites the golden file with a partial capture.
+
+### Maintenance
+
+- maint: bump go to 1.27.3 (#191) | [@lizthegrey](https://github.com/lizthegrey)
+- maint(deps): bump golang.org/x/net from 0.47.0 to 0.55.0 (#179) | @dependabot
+- maint(deps): bump google.golang.org/grpc from 1.78.0 to 1.83.2 (#190) | @dependabot
+- maint(deps): bump github.com/klauspost/compress from 1.18.5 to 1.20.3 (#194) | @dependabot
+- maint(deps): bump go.opentelemetry.io/proto/otlp from 1.9.0 to 1.11.1 (#193) | @dependabot
+- maint(deps): bump github.com/honeycombio/husky from 0.43.1 to 0.44.0 (#195) | @dependabot
+- maint(deps): bump github.com/stretchr/testify from 1.11.1 to 1.12.1 (#188) | @dependabot
+- maint(deps): bump github.com/sirupsen/logrus from 1.9.4 to 1.10.2 (#187) | @dependabot
+- chore: refresh LICENSES for the current dependency set (#196) | [@lizthegrey](https://github.com/lizthegrey)
+
 ## v12.1.0 - 2026-08-31
 
 This release lets a function instrumented with OpenTelemetry send its telemetry through this extension instead of running a sidecar collector.
