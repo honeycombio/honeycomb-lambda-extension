@@ -90,7 +90,10 @@ for format in Text JSON; do
 	START_MS=$(python3 -c 'import time;print(int(time.time()*1000)-2000)')
 	for pass in 1 2; do
 		echo "--- invoking (pass $pass)"
+		# raw-in-base64-out because AWS CLI v2 otherwise expects the payload
+		# itself to be base64.
 		aws lambda invoke --function-name "$NAME" --payload '{}' \
+			--cli-binary-format raw-in-base64-out \
 			--query 'FunctionError' --output text \
 			"$WORK/out-$format-$pass.json" >"$WORK/err-$format-$pass.txt"
 		if [ "$(cat "$WORK/err-$format-$pass.txt")" != "None" ]; then
@@ -104,18 +107,28 @@ for format in Text JSON; do
 	# Telemetry lands only after the environment thaws, so keep invoking until the
 	# function's own stdout actually appears rather than settling for init-phase
 	# messages that arrive first.
+	ready=0
 	for attempt in 1 2 3 4 5 6; do
 		aws logs filter-log-events --log-group-name "/aws/lambda/$NAME" \
 			--start-time "$START_MS" \
 			--filter-pattern '"CAPTURE:"' --query 'events[].message' --output json \
 			>"$WORK/raw-$format.json" 2>/dev/null || echo '[]' >"$WORK/raw-$format.json"
 		if [ "$(python3 "$HERE/collect.py" --ready "$WORK/raw-$format.json")" = "1" ]; then
+			ready=1
 			break
 		fi
 		echo "    capture incomplete (attempt $attempt); invoking again"
-		aws lambda invoke --function-name "$NAME" --payload '{}' "$WORK/nudge.json" >/dev/null
+		aws lambda invoke --function-name "$NAME" --payload '{}' \
+			--cli-binary-format raw-in-base64-out "$WORK/nudge.json" >/dev/null
 		sleep 10
 	done
+
+	# A partial capture must never become the golden: the replay tests would
+	# assert against an impoverished picture of what Lambda sends, and pass.
+	if [ "$ready" != "1" ]; then
+		echo "ERROR: the $format capture never completed; not writing a golden" >&2
+		exit 1
+	fi
 
 	lower=$(printf '%s' "$format" | tr '[:upper:]' '[:lower:]')
 	python3 "$HERE/collect.py" "$WORK/raw-$format.json" \
