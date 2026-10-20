@@ -7,7 +7,7 @@ require (
 	github.com/honeycombio/husky v0.44.0
 	github.com/honeycombio/libhoney-go v1.27.1
 	github.com/klauspost/compress v1.20.3
-	github.com/sirupsen/logrus v1.9.4
+	github.com/sirupsen/logrus v1.10.2
 	github.com/stretchr/testify v1.12.1
 	github.com/vmihailenco/msgpack/v5 v5.4.1
 	go.opentelemetry.io/proto/otlp v1.11.1
