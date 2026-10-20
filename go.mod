@@ -1,6 +1,6 @@
 module github.com/honeycombio/honeycomb-lambda-extension
 
-go 1.26
+go 1.27.3
 
 require (
 	github.com/honeycombio/husky v0.43.1
