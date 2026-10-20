@@ -79,7 +79,16 @@ func handler(client eventCreator, config extension.Config) http.HandlerFunc {
 			var record interface{}
 			if len(msg.Record) > 0 {
 				if err := json.Unmarshal(msg.Record, &record); err != nil {
+					// Syntactically valid JSON can still fail to decode: a
+					// number beyond float64's range, for one. Every message
+					// the platform delivers should reach Honeycomb in some
+					// form, so report the record as the raw line it was rather
+					// than dropping it.
 					log.Warn("Could not unmarshal record", err)
+					event := newEvent(client, msg)
+					event.Timestamp = parseMessageTimestamp(event, msg)
+					event.AddField("record", string(msg.Record))
+					sendEvent(event)
 					continue
 				}
 			}
