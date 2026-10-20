@@ -28,8 +28,8 @@ github.com/grpc-ecosystem/grpc-gateway/v2 v2.31.0 h1:Bd7KaOxzULLxtZ/K5s1aLbWhR0+
 github.com/grpc-ecosystem/grpc-gateway/v2 v2.31.0/go.mod h1:nN7ts3dFXKtCZWc//yfkpcQNKJABg16/uDVAZpLDalo=
 github.com/hashicorp/go-version v1.8.0 h1:KAkNb1HAiZd1ukkxDFGmokVZe1Xy9HG6NUp+bPle2i4=
 github.com/hashicorp/go-version v1.8.0/go.mod h1:fltr4n8CU8Ke44wwGCBoEymUuxUHl09ZGVZPK5anwXA=
-github.com/honeycombio/husky v0.43.1 h1:HRaSO59KujOsYNQO1Qkn8YFboizheTJcKlBvVhClDe8=
-github.com/honeycombio/husky v0.43.1/go.mod h1:lQ1VzGZxeYPCr4zxmak1lVe29HJFqJ6bQXWCl0ZqlNg=
+github.com/honeycombio/husky v0.44.0 h1:VJhJOEs5FQ5BFECFfi4g2rG5cMH8Ven4wqHbuk/zr40=
+github.com/honeycombio/husky v0.44.0/go.mod h1:lQ1VzGZxeYPCr4zxmak1lVe29HJFqJ6bQXWCl0ZqlNg=
 github.com/honeycombio/libhoney-go v1.27.1 h1:79FR19fVpaeDMqTDfpXtMxd90vzsxhZnIOSysMrUSQQ=
 github.com/honeycombio/libhoney-go v1.27.1/go.mod h1:qLZO8Q3ep/hISEoVC7m8N9ZOvn2eqaGdoJg9XXXasqM=
 github.com/jmespath/go-jmespath v0.4.0 h1:BEgLn5cpjn8UN1mAw4NjwDrS35OdebyEtFe+9YPoQUg=

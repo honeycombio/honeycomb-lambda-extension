@@ -4,7 +4,7 @@ go 1.27.3
 
 require (
 	github.com/aws/aws-sdk-go v1.55.8
-	github.com/honeycombio/husky v0.43.1
+	github.com/honeycombio/husky v0.44.0
 	github.com/honeycombio/libhoney-go v1.27.1
 	github.com/klauspost/compress v1.20.3
 	github.com/sirupsen/logrus v1.9.4
