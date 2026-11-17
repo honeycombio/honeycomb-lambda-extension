@@ -9,6 +9,10 @@ updates:
     directory: "/" # Location of package manifests
     schedule:
       interval: "monthly"
+    # By default Dependabot only proposes version updates for direct
+    # dependencies; allow indirect ones (e.g. golang.org/x/net) too.
+    allow:
+      - dependency-type: "all"
     labels:
       - "type: dependencies"
     commit-message:
