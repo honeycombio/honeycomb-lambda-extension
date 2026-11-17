@@ -17,6 +17,10 @@ updates:
       golang-x:
         patterns:
           - "golang.org/x/*"
+      grpc:
+        patterns:
+          - "google.golang.org/grpc*"
+          - "google.golang.org/genproto/*"
     labels:
       - "type: dependencies"
     commit-message:
