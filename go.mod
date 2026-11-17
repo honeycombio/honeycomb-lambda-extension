@@ -4,7 +4,7 @@ go 1.27.3
 
 require (
 	github.com/aws/aws-sdk-go v1.55.8
-	github.com/honeycombio/husky v0.45.0
+	github.com/honeycombio/husky v0.47.0
 	github.com/honeycombio/libhoney-go v1.27.1
 	github.com/klauspost/compress v1.20.3
 	github.com/sirupsen/logrus v1.10.2
@@ -20,23 +20,23 @@ require (
 	github.com/facebookgo/limitgroup v0.0.0-20150612190941-6abd8d71ec01 // indirect
 	github.com/facebookgo/muster v0.0.0-20150708232844-fd3d7953fd52 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.31.0 // indirect
-	github.com/hashicorp/go-version v1.8.0 // indirect
+	github.com/hashicorp/go-version v1.9.0 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee // indirect
-	github.com/open-telemetry/opentelemetry-collector-contrib/pkg/sampling v0.142.0 // indirect
+	github.com/open-telemetry/opentelemetry-collector-contrib/pkg/sampling v0.164.1 // indirect
 	github.com/philhofer/fwd v1.2.0 // indirect
-	github.com/tinylib/msgp v1.6.2 // indirect
-	github.com/valyala/fastjson v1.6.7 // indirect
+	github.com/tinylib/msgp v1.6.5 // indirect
+	github.com/valyala/fastjson v1.6.10 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
-	go.opentelemetry.io/collector/featuregate v1.48.0 // indirect
-	go.opentelemetry.io/collector/pdata v1.48.0 // indirect
-	go.opentelemetry.io/proto/otlp/collector/profiles/v1development v0.2.0 // indirect
-	go.opentelemetry.io/proto/otlp/profiles/v1development v0.2.0 // indirect
+	go.opentelemetry.io/collector/featuregate v1.70.0 // indirect
+	go.opentelemetry.io/collector/pdata v1.70.0 // indirect
+	go.opentelemetry.io/proto/otlp/collector/profiles/v1development v0.4.1 // indirect
+	go.opentelemetry.io/proto/otlp/profiles/v1development v0.4.1 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
-	golang.org/x/net v0.59.0 // indirect
+	golang.org/x/net v0.60.0 // indirect
 	golang.org/x/sys v0.48.0 // indirect
 	golang.org/x/text v0.42.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260928230214-8a89bd6388cc // indirect
