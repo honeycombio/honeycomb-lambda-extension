@@ -13,6 +13,10 @@ updates:
     # dependencies; allow indirect ones (e.g. golang.org/x/net) too.
     allow:
       - dependency-type: "all"
+    groups:
+      golang-x:
+        patterns:
+          - "golang.org/x/*"
     labels:
       - "type: dependencies"
     commit-message:
