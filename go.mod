@@ -30,8 +30,8 @@ require (
 	github.com/tinylib/msgp v1.6.5 // indirect
 	github.com/valyala/fastjson v1.6.10 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
-	go.opentelemetry.io/collector/featuregate v1.70.0 // indirect
-	go.opentelemetry.io/collector/pdata v1.70.0 // indirect
+	go.opentelemetry.io/collector/featuregate v1.71.0 // indirect
+	go.opentelemetry.io/collector/pdata v1.71.0 // indirect
 	go.opentelemetry.io/proto/otlp/collector/profiles/v1development v0.4.1 // indirect
 	go.opentelemetry.io/proto/otlp/profiles/v1development v0.4.1 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
