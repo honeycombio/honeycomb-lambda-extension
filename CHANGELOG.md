@@ -1,5 +1,26 @@
 # Honeycomb Lambda Extension Changelog
 
+## v12.2.1 - 2026-11-18
+
+A maintenance release. Dependabot now also updates indirect Go dependencies, so this build picks up newer `golang.org/x/*` (including `x/net` v0.62.0), `google.golang.org/grpc` v1.85.0 and `genproto` modules than v12.2.0 shipped with. No change to the extension's behavior.
+
+### Maintenance
+
+- maint: let Dependabot update indirect Go dependencies (#202) | [@lizthegrey](https://github.com/lizthegrey)
+- chore: remove add-to-project workflow (#198) | [@robbkidd](https://github.com/robbkidd)
+- chore: refresh LICENSES for the current dependency set (#211) | [@lizthegrey](https://github.com/lizthegrey)
+- maint(deps): bump github.com/honeycombio/husky from 0.44.0 to 0.45.0 (#199) | @dependabot
+- maint(deps): bump github.com/honeycombio/husky from 0.45.0 to 0.47.0 (#201) | @dependabot
+- maint(deps): bump github.com/klauspost/compress from 1.20.3 to 1.20.4 (#200) | @dependabot
+- maint(deps): bump the golang-x group with 3 updates (#203) | @dependabot
+- maint(deps): bump google.golang.org/grpc from 1.84.0 to 1.85.0 in the grpc group (#204) | @dependabot
+- maint(deps): bump go.opentelemetry.io/collector/pdata from 1.70.0 to 1.71.0 (#205) | @dependabot
+- maint(deps): bump github.com/philhofer/fwd from 1.2.0 to 1.2.1 (#206) | @dependabot
+- maint(deps): bump go.yaml.in/yaml/v3 from 3.0.5 to 3.0.6 (#207) | @dependabot
+- maint(deps): bump the golang-x group with 2 updates (#208) | @dependabot
+- maint(deps): bump github.com/grpc-ecosystem/grpc-gateway/v2 from 2.31.0 to 2.33.0 (#209) | @dependabot
+- maint(deps): bump github.com/open-telemetry/opentelemetry-collector-contrib/pkg/sampling from 0.164.1 to 0.165.1 (#210) | @dependabot
+
 ## v12.2.0 - 2026-10-20
 
 This release rebuilds the extension with Go 1.27.3, which carries the `crypto/x509` mitigation for the compromised eMudhra intermediate certificate authorities (CVE-2026-111943). A layer built with an earlier toolchain still trusts those intermediates, so anyone holding one of the compromised private keys could impersonate a host the extension connects to — the Honeycomb API included. The same release clears every open Dependabot alert against `google.golang.org/grpc`, `github.com/klauspost/compress` and `golang.org/x/net`, and stops dropping telemetry that fails to decode.
